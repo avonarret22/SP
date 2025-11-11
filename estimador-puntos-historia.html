@@ -1,0 +1,2737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estimador de Puntos de Historia - Fibonacci</title>
+    <style>
+        /* ============================================
+           MEJORAS UX/UI - VARIABLES CSS Y TEMAS
+           ============================================ */
+        :root {
+            /* Colores Tema Claro */
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --container-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --border-color: #e0e0e0;
+            --input-bg: #f8f9fa;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            
+            /* Transiciones suaves */
+            --transition-fast: 0.2s ease;
+            --transition-normal: 0.3s ease;
+            --transition-slow: 0.5s ease;
+            
+            /* Espaciado consistente */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 40px;
+            
+            /* Border radius */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 15px;
+            --radius-xl: 20px;
+        }
+
+        /* Tema Oscuro */
+        [data-theme="dark"] {
+            --bg-gradient-start: #1a1a2e;
+            --bg-gradient-end: #16213e;
+            --container-bg: #0f3460;
+            --text-primary: #e8e8e8;
+            --text-secondary: #b0b0b0;
+            --text-tertiary: #808080;
+            --border-color: #2a2a3e;
+            --input-bg: #1a2332;
+            --shadow: rgba(0, 0, 0, 0.6);
+            --shadow-light: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Mejora: Scroll suave en toda la página */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            transition: background var(--transition-slow);
+            color: var(--text-primary);
+        }
+
+        .container {
+            background: var(--container-bg);
+            border-radius: var(--radius-xl);
+            box-shadow: 0 20px 60px var(--shadow);
+            padding: var(--spacing-xl);
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            transition: all var(--transition-normal);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Animación de entrada */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Toggle de Dark Mode - Mejora UX */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--input-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 30px;
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all var(--transition-fast);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            z-index: 1000;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px var(--shadow-light);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.98);
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+            padding-top: 30px;
+            transition: color var(--transition-normal);
+        }
+
+        [data-theme="dark"] h1 {
+            color: #8b9cff;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            font-size: 14px;
+            transition: color var(--transition-normal);
+        }
+
+        /* Mejora: Indicador de progreso visual */
+        .progress-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: var(--input-bg);
+            border-radius: var(--radius-md);
+            transition: all var(--transition-normal);
+        }
+
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--border-color);
+            transition: all var(--transition-fast);
+        }
+
+        .progress-dot.active {
+            width: 30px;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .criteria-section {
+            margin-bottom: 30px;
+            animation: slideIn 0.4s ease-out;
+            animation-fill-mode: both;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Stagger animation para cada sección */
+        .criteria-section:nth-child(1) { animation-delay: 0.1s; }
+        .criteria-section:nth-child(2) { animation-delay: 0.2s; }
+        .criteria-section:nth-child(3) { animation-delay: 0.3s; }
+        .criteria-section:nth-child(4) { animation-delay: 0.4s; }
+        .criteria-section:nth-child(5) { animation-delay: 0.5s; }
+
+        .criteria-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color var(--transition-normal);
+        }
+
+        /* Mejora: Indicador de ayuda */
+        .help-icon {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            background: var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 18px;
+            font-size: 12px;
+            cursor: help;
+            transition: all var(--transition-fast);
+        }
+
+        .help-icon:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .criteria-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-style: italic;
+            line-height: 1.4;
+            transition: color var(--transition-normal);
+        }
+
+        .likert-scale {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .likert-option {
+            flex: 1;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .likert-option input[type="radio"] {
+            display: none;
+        }
+
+        .likert-option label {
+            display: block;
+            padding: 15px 10px;
+            background: var(--input-bg);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 13px;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Mejora: Efecto ripple al hacer clic */
+        .likert-option label::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(102, 126, 234, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .likert-option input[type="radio"]:checked + label::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .likert-option label:hover {
+            background: #e8e9ff;
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px var(--shadow-light);
+        }
+
+        /* Mejora: Estado focus visible para accesibilidad */
+        .likert-option input[type="radio"]:focus + label {
+            outline: 3px solid #667eea;
+            outline-offset: 2px;
+        }
+
+        .likert-option input[type="radio"]:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+            animation: pulse-once 0.4s ease-out;
+        }
+
+        @keyframes pulse-once {
+            0%, 100% { transform: translateY(-2px) scale(1.05); }
+            50% { transform: translateY(-2px) scale(1.1); }
+        }
+
+        .likert-value {
+            font-size: 20px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .likert-label {
+            font-size: 11px;
+            display: block;
+            line-height: 1.2;
+        }
+
+        .result-section {
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .result-label {
+            color: white;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .story-points {
+            font-size: 72px;
+            font-weight: bold;
+            color: white;
+            margin: 20px 0;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .average-score {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .warning {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .warning.show {
+            display: block;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .reset-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid transparent;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reset-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .reset-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .reset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-color: #667eea;
+        }
+
+        .reset-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Mejora: Loading state para botones */
+        .btn-loading {
+            pointer-events: none;
+            opacity: 0.6;
+            position: relative;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spinner 0.8s linear infinite;
+        }
+
+        @keyframes spinner {
+            to { transform: rotate(360deg); }
+        }
+
+        .fibonacci-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .fibonacci-sequence {
+            font-weight: 600;
+            color: #667eea;
+            margin-top: 5px;
+        }
+
+        .calibration-questions {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .calibration-questions h3 {
+            color: #2e7d32;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .question-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .question-item strong {
+            color: #2e7d32;
+        }
+
+        .red-flags {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .red-flags h3 {
+            color: #c62828;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .red-flags ul {
+            margin-left: 20px;
+            font-size: 12px;
+            color: #d32f2f;
+        }
+
+        .red-flags li {
+            margin-bottom: 6px;
+        }
+
+        .story-input {
+            margin-bottom: 25px;
+        }
+
+        .story-input label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            transition: color var(--transition-normal);
+        }
+
+        .story-input input,
+        .story-input textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all var(--transition-fast);
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .story-input input:focus,
+        .story-input textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Mejora: Placeholder animado */
+        .story-input input::placeholder,
+        .story-input textarea::placeholder {
+            color: var(--text-tertiary);
+            transition: all var(--transition-fast);
+        }
+
+        .story-input input:focus::placeholder,
+        .story-input textarea:focus::placeholder {
+            transform: translateX(5px);
+            opacity: 0.7;
+        }
+
+        .story-input textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .dependencies-section {
+            background: #fff9e6;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .dependencies-section h3 {
+            font-size: 14px;
+            color: #f57c00;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            accent-color: #667eea;
+        }
+
+        .checkbox-item input[type="checkbox"]:hover {
+            transform: scale(1.1);
+        }
+
+        .checkbox-item input[type="checkbox"]:focus {
+            outline: 3px solid rgba(102, 126, 234, 0.3);
+            outline-offset: 2px;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 13px;
+            user-select: none;
+            transition: color var(--transition-fast);
+        }
+
+        .checkbox-item input[type="checkbox"]:checked + label {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        /* ============================================
+           MEJORAS RESPONSIVE - MOBILE FIRST
+           ============================================ */
+        
+        /* Tablets y móviles grandes */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+
+            .container {
+                padding: 24px;
+                margin: 0;
+            }
+
+            h1 {
+                font-size: 24px;
+                padding-top: 40px;
+            }
+
+            .theme-toggle {
+                top: 10px;
+                right: 10px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            .likert-scale {
+                gap: 6px;
+            }
+
+            .likert-option {
+                min-width: 60px;
+            }
+
+            .likert-option label {
+                padding: 12px 6px;
+                font-size: 11px;
+            }
+
+            .likert-value {
+                font-size: 16px !important;
+            }
+
+            .story-points {
+                font-size: 56px !important;
+            }
+
+            .checkbox-group {
+                gap: 12px;
+            }
+
+            .toast {
+                bottom: 20px;
+                right: 20px;
+                left: 20px;
+                max-width: none;
+            }
+        }
+
+        /* Móviles pequeños */
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px;
+                border-radius: var(--radius-md);
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .likert-scale {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .likert-option {
+                width: 100%;
+                min-width: 100%;
+            }
+
+            .likert-option label {
+                padding: 14px;
+                font-size: 13px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .save-estimation-btn,
+            .reset-btn {
+                width: 100%;
+                margin-right: 0;
+                margin-top: 10px;
+            }
+
+            .quick-select {
+                gap: 6px;
+            }
+
+            .quick-select-btn {
+                flex: 1;
+                min-width: 45px;
+            }
+        }
+
+        /* Mejora: Modo de alto contraste */
+        @media (prefers-contrast: high) {
+            .likert-option label {
+                border-width: 3px;
+            }
+
+            .story-input input,
+            .story-input textarea {
+                border-width: 3px;
+            }
+        }
+
+        /* Mejora: Reducir movimiento para usuarios que lo prefieran */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Estilos para tooltips de dependencias */
+        .checkbox-item {
+            position: relative;
+        }
+
+        .checkbox-item .tooltip {
+            visibility: hidden;
+            width: 280px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 10px 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -140px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            line-height: 1.5;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .checkbox-item .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .checkbox-item:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .recommendation-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .recommendation-box.show {
+            display: block;
+        }
+
+        .recommendation-box h3 {
+            color: #2e7d32;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-box ul {
+            margin-left: 20px;
+            font-size: 13px;
+            color: #1b5e20;
+        }
+
+        .recommendation-box li {
+            margin-bottom: 4px;
+        }
+
+        .history-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .history-section h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .history-item strong {
+            color: #667eea;
+        }
+
+        .history-item .timestamp {
+            color: #999;
+            font-size: 11px;
+        }
+
+        .save-estimation-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+            margin-right: 10px;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .save-estimation-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .save-estimation-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .save-estimation-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .save-estimation-btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        /* Mejora: Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #323232;
+            color: white;
+            padding: 16px 24px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateX(400px);
+            transition: transform var(--transition-normal);
+            z-index: 9999;
+            max-width: 350px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            animation: slideInRight 0.4s ease-out;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            background: #4caf50;
+        }
+
+        .toast.error {
+            background: #f44336;
+        }
+
+        .toast.warning {
+            background: #ff9800;
+        }
+
+        .export-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .export-btn:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+        }
+
+        .quick-select {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .quick-select-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .quick-select-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .team-capacity-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #1565c0;
+        }
+
+        .comparison-box {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .comparison-box h3 {
+            color: #6a1b9a;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .comparison-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .comparison-item:hover {
+            background: #e1bee7;
+            transform: translateX(5px);
+        }
+
+        .comparison-item strong {
+            color: #9c27b0;
+        }
+
+        .visual-breakdown {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+
+        .visual-breakdown h4 {
+            font-size: 13px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bar-label {
+            width: 100px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .bar-container {
+            flex: 1;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+        }
+
+        .bar-value {
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .collapsible-section {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        .collapsible-header:hover {
+            background: #d1e7fd;
+        }
+
+        .collapsible-header h3 {
+            color: #1565c0;
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .collapsible-toggle {
+            font-size: 24px;
+            color: #1565c0;
+            font-weight: bold;
+            transition: transform 0.3s;
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            padding: 0 20px;
+        }
+
+        .collapsible-content.open {
+            max-height: 5000px;
+            transition: max-height 0.6s ease-in;
+            padding: 0 20px 20px 20px;
+        }
+
+        .guide-subsection {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .guide-subsection h4 {
+            color: #1976d2;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Botón de Dark Mode - Mejora UX -->
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Cambiar tema" title="Cambiar entre modo claro y oscuro">
+            <span id="theme-icon">🌙</span>
+            <span id="theme-text">Modo Oscuro</span>
+        </button>
+
+        <h1>📊 Estimador de Puntos de Historia</h1>
+        <p class="subtitle">Herramienta para alinear criterios de estimación del equipo</p>
+
+        <!-- Indicador de progreso visual - Mejora UX -->
+        <div class="progress-indicator" role="progressbar" aria-label="Progreso de evaluación">
+            <div class="progress-dot active"></div>
+            <div class="progress-dot"></div>
+            <div class="progress-dot"></div>
+            <div class="progress-dot"></div>
+        </div>
+
+        <!-- Roles del Equipo - Sección Colapsable Independiente -->
+        <div class="collapsible-section">
+            <div class="collapsible-header" onclick="toggleRoles()">
+                <h3>👥 Roles del Equipo Scrum: ¿Quién Hace Qué?</h3>
+                <span class="collapsible-toggle" id="roles-toggle">+</span>
+            </div>
+            
+            <div class="collapsible-content" id="roles-content">
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; color: #1565c0;">
+                    <strong>💡 Para no técnicos:</strong> Un equipo Scrum está compuesto por diferentes especialistas que trabajan juntos para desarrollar software. 
+                    Aquí te explicamos qué hace cada uno y cómo colaboran en el desarrollo de historias de usuario.
+                </div>
+
+                <!-- Roles de Desarrollo (Development Team) -->
+                <div class="guide-subsection">
+                    <h4 style="color: #1976d2; border-left: 4px solid #2196f3; padding-left: 12px; margin-bottom: 15px;">
+                        💻 Development Team - El Equipo Técnico
+                    </h4>
+                    <p style="font-size: 12px; color: #555; margin-bottom: 15px; font-style: italic;">
+                        Son los profesionales que construyen el producto. Cada uno tiene su especialidad pero colaboran para completar las historias de usuario.
+                    </p>
+
+                    <!-- Backend Developers -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #4caf50;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🔧</span>
+                            <strong style="color: #2e7d32; font-size: 15px;">Backend Developers</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hacen?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Construyen la <strong>"lógica del negocio"</strong> - las reglas y procesos que hacen funcionar la aplicación</li>
+                                <li>Crean y gestionan <strong>APIs</strong> (servicios que conectan el frontend con la base de datos)</li>
+                                <li>Implementan <strong>integraciones con sistemas externos</strong> (SAP, servicios de terceros, microservicios)</li>
+                                <li>Desarrollan <strong>algoritmos complejos</strong> y procesamientos de datos</li>
+                                <li>Gestionan <strong>autenticación y seguridad</strong> (login, permisos, cifrado)</li>
+                                <li>Optimizan el <strong>rendimiento</strong> de las operaciones del servidor</li>
+                            </ul>
+                            <strong>Tecnologías típicas:</strong> Java, C#, Node.js, Python, Spring Boot, .NET, bases de datos, colas de mensajería
+                            <br><br>
+                            <strong>En estimaciones:</strong> Lideran cuando la HU tiene lógica compleja, integraciones, o procesamiento de datos pesado.
+                        </div>
+                    </div>
+
+                    <!-- Full Stack Developers -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #ff9800;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🔄</span>
+                            <strong style="color: #e65100; font-size: 15px;">Full Stack Developers</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hacen?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Trabajan en <strong>ambos lados</strong>: frontend (lo que ve el usuario) y backend (lógica del servidor)</li>
+                                <li>Son el <strong>"puente"</strong> entre frontend y backend, coordinan la integración completa</li>
+                                <li>Desarrollan <strong>features end-to-end</strong> (desde la pantalla hasta la base de datos)</li>
+                                <li>Implementan <strong>flujos completos de usuario</strong> incluyendo UI, validaciones, y persistencia</li>
+                                <li>Ayudan a <strong>resolver bloqueos</strong> cuando hay dependencias entre capas</li>
+                                <li>Facilitan la <strong>comunicación</strong> entre especialistas de frontend y backend</li>
+                            </ul>
+                            <strong>Tecnologías típicas:</strong> React/Angular + Node.js, o tecnologías full-stack como Next.js, .NET MVC
+                            <br><br>
+                            <strong>En estimaciones:</strong> Aportan visión integral. Cruciales cuando la HU afecta múltiples capas del sistema.
+                        </div>
+                    </div>
+
+                    <!-- Frontend Developer -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #2196f3;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🎨</span>
+                            <strong style="color: #1565c0; font-size: 15px;">Frontend Developer</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hace?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Construye la <strong>interfaz de usuario (UI)</strong> - todo lo que el usuario ve y toca</li>
+                                <li>Implementa el <strong>diseño visual</strong> trabajando con mockups de UX/UI</li>
+                                <li>Desarrolla <strong>componentes interactivos</strong> (formularios, tablas, modales, gráficos)</li>
+                                <li>Gestiona el <strong>estado de la aplicación</strong> en el navegador</li>
+                                <li>Asegura <strong>responsividad</strong> (que funcione en móvil, tablet, desktop)</li>
+                                <li>Optimiza la <strong>experiencia de usuario</strong> (animaciones, feedback visual, accesibilidad)</li>
+                                <li>Conecta la UI con las <strong>APIs del backend</strong> (llamadas HTTP, manejo de respuestas)</li>
+                            </ul>
+                            <strong>Tecnologías típicas:</strong> React, Angular, Vue.js, HTML5, CSS3, TypeScript, JavaScript
+                            <br><br>
+                            <strong>En estimaciones:</strong> Lidera cuando la HU es principalmente visual, tiene UX compleja, o requiere componentes nuevos.
+                        </div>
+                    </div>
+
+                    <!-- DBA -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #9c27b0;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🗄️</span>
+                            <strong style="color: #6a1b9a; font-size: 15px;">DBA - Database Administrator</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hace?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Diseña y mantiene la <strong>estructura de la base de datos</strong> (tablas, relaciones, índices)</li>
+                                <li>Crea y optimiza <strong>queries</strong> (consultas SQL) para extraer y modificar datos eficientemente</li>
+                                <li>Implementa <strong>migraciones de datos</strong> cuando cambia la estructura de tablas</li>
+                                <li>Asegura la <strong>integridad de los datos</strong> (constraints, validaciones, backups)</li>
+                                <li>Optimiza el <strong>rendimiento de consultas</strong> en tablas grandes (millones de registros)</li>
+                                <li>Gestiona <strong>stored procedures y triggers</strong> (lógica que vive en la BD)</li>
+                                <li>Monitorea y resuelve problemas de <strong>performance</strong> relacionados con datos</li>
+                            </ul>
+                            <strong>Tecnologías típicas:</strong> SQL Server, PostgreSQL, Oracle, MySQL, MongoDB, Redis
+                            <br><br>
+                            <strong>En estimaciones:</strong> Su voz es CRÍTICA cuando la HU impacta bases de datos grandes, cambia modelos de datos, o requiere queries complejas.
+                        </div>
+                    </div>
+
+                    <!-- QA/Tester -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #e91e63;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🧪</span>
+                            <strong style="color: #c2185b; font-size: 15px;">QA/Tester - Quality Assurance</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hace?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Verifica que todo <strong>funcione correctamente</strong> antes de ir a producción</li>
+                                <li>Diseña y ejecuta <strong>casos de prueba</strong> (escenarios normales y casos edge)</li>
+                                <li>Realiza <strong>testing manual</strong> exploratorio para encontrar bugs no obvios</li>
+                                <li>Implementa <strong>tests automatizados</strong> (unit tests, integration tests, E2E tests)</li>
+                                <li>Prueba en <strong>múltiples dispositivos y navegadores</strong> (compatibilidad)</li>
+                                <li>Valida <strong>performance</strong> (tiempos de carga, respuesta bajo carga)</li>
+                                <li>Asegura que se cumplan los <strong>criterios de aceptación</strong> de la HU</li>
+                                <li>Hace <strong>testing de regresión</strong> (verifica que no se rompió nada existente)</li>
+                            </ul>
+                            <strong>Herramientas típicas:</strong> Selenium, Cypress, JUnit, Postman, JMeter, TestRail
+                            <br><br>
+                            <strong>En estimaciones:</strong> Evalúa cuántos escenarios hay que probar. Su input es VITAL - el testing mal estimado causa retrasos.
+                        </div>
+                    </div>
+
+                    <!-- Business Analyst -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #00bcd4;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">📊</span>
+                            <strong style="color: #0097a7; font-size: 15px;">Business Analyst - BA</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hace?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Es el <strong>"traductor"</strong> entre negocio y equipo técnico</li>
+                                <li>Analiza y documenta <strong>requisitos funcionales</strong> (qué debe hacer el sistema)</li>
+                                <li>Define <strong>criterios de aceptación</strong> claros y medibles para cada HU</li>
+                                <li>Valida que la solución técnica <strong>resuelva el problema de negocio</strong></li>
+                                <li>Identifica <strong>casos edge y excepciones</strong> que el negocio no mencionó</li>
+                                <li>Facilita <strong>sesiones de refinamiento</strong> con Product Owner y equipo</li>
+                                <li>Crea <strong>diagramas de flujo</strong> y documentación funcional</li>
+                            </ul>
+                            <strong>Habilidades clave:</strong> Análisis de procesos, documentación, comunicación, entendimiento del dominio de negocio
+                            <br><br>
+                            <strong>En estimaciones:</strong> Clarifica requisitos durante la Planning. Si algo no está claro, él ayuda a resolverlo o marca que la HU no está lista.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Roles que NO Estiman -->
+                <div class="guide-subsection" style="background: #fff3e0; border: 2px solid #ff9800;">
+                    <h4 style="color: #e65100; border-left: 4px solid #ff9800; padding-left: 12px; margin-bottom: 15px;">
+                        🚫 Roles que NO Estiman (pero son esenciales)
+                    </h4>
+
+                    <!-- Product Owner -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🎯</span>
+                            <strong style="color: #f57c00; font-size: 15px;">Product Owner (PO)</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hace?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Es el <strong>"dueño del producto"</strong> - define QUÉ se construye</li>
+                                <li>Gestiona y prioriza el <strong>Product Backlog</strong> (lista de funcionalidades)</li>
+                                <li>Define la <strong>visión del producto</strong> y el valor de negocio de cada HU</li>
+                                <li>Representa a los <strong>stakeholders y usuarios</strong> finales</li>
+                                <li>Presenta las HU en Planning y responde <strong>dudas de negocio</strong></li>
+                                <li>Acepta o rechaza el trabajo completado según <strong>criterios de aceptación</strong></li>
+                                <li>Toma decisiones de <strong>alcance y prioridad</strong></li>
+                            </ul>
+                            <div style="background: #ffebee; padding: 10px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #f44336;">
+                                <strong style="color: #c62828;">⚠️ ¿Por qué NO estima?</strong><br>
+                                El PO define el QUÉ (valor de negocio), pero el equipo técnico define el CÓMO y CUÁNTO (esfuerzo). 
+                                Si el PO estimara, contaminaría la estimación con presión de negocio. La estimación debe ser técnica y objetiva.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scrum Master -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="font-size: 24px;">🎓</span>
+                            <strong style="color: #f57c00; font-size: 15px;">Scrum Master (SM)</strong>
+                        </div>
+                        <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                            <strong>¿Qué hace?</strong>
+                            <ul style="margin: 8px 0 8px 20px;">
+                                <li>Es el <strong>"facilitador y coach"</strong> del equipo Scrum</li>
+                                <li>Asegura que el equipo siga las <strong>ceremonias y prácticas de Scrum</strong></li>
+                                <li>Facilita las reuniones (Planning, Daily, Retro, Review) manteniendo el <strong>foco y timeboxing</strong></li>
+                                <li>Elimina <strong>impedimentos y bloqueos</strong> que frenan al equipo</li>
+                                <li>Protege al equipo de <strong>interrupciones externas</strong> y presiones</li>
+                                <li>Fomenta la <strong>mejora continua</strong> y auto-organización</li>
+                                <li>Media <strong>conflictos</strong> y facilita el consenso</li>
+                            </ul>
+                            <div style="background: #ffebee; padding: 10px; border-radius: 6px; margin-top: 10px; border-left: 3px solid #f44336;">
+                                <strong style="color: #c62828;">⚠️ ¿Por qué NO estima?</strong><br>
+                                El SM es un facilitador neutral. Solo interviene para desempatar en casos extremos o recordar criterios, 
+                                pero NUNCA impone una estimación. Su rol es asegurar que el equipo llegue a consenso por sí mismo.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nota Final -->
+                <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 20px;">
+                    <div style="font-size: 13px; line-height: 1.7; color: #1b5e20;">
+                        <strong style="font-size: 14px;">💡 Principio Clave de las Estimaciones:</strong><br><br>
+                        Solo quienes <strong>ejecutan el trabajo</strong> estiman. El PO define el valor, el SM facilita el proceso, 
+                        pero son los developers, DBA, QA y BA quienes mejor conocen el esfuerzo real necesario.<br><br>
+                        La estimación es del <strong>equipo completo</strong>, no de individuos. Todos aportan su perspectiva según su especialidad, 
+                        y juntos llegan a un consenso que representa la visión integral del trabajo requerido.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guía de Planning Meeting - Sección Colapsable -->
+        <div class="collapsible-section">
+            <div class="collapsible-header" onclick="toggleGuide()">
+                <h3>📚 Guía: Cómo Gestionar una Planning Meeting</h3>
+                <span class="collapsible-toggle" id="guide-toggle">+</span>
+            </div>
+            
+            <div class="collapsible-content" id="guide-content">
+                <div class="guide-subsection">
+                    <h4>¿Qué es una Planning Meeting?</h4>
+                    <p style="font-size: 13px; line-height: 1.6; color: #333;">
+                        Es la ceremonia de Scrum donde el <strong>equipo completo</strong> revisa las historias de usuario (HU) del backlog, 
+                        las discute, las aclara con el Product Owner, y las <strong>estima en puntos de historia</strong> para entender 
+                        su complejidad relativa. El objetivo es que el equipo haga <strong>commitment</strong> de qué puede completar en el próximo sprint.
+                    </p>
+                </div>
+
+                <div class="guide-subsection">
+                    <h4>👥 ¿Quiénes Participan?</h4>
+                    <div style="font-size: 12px; line-height: 1.8; color: #333;">
+                        <strong style="color: #2196f3;">TODOS los miembros del Development Team</strong> deben participar activamente en la estimación:
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li><strong>Backend Developers:</strong> Estiman lógica de negocio, APIs, integraciones</li>
+                            <li><strong>Full Stack:</strong> Aportan visión end-to-end, coordinan frontend+backend</li>
+                            <li><strong>Frontend Developer:</strong> Estima UI/UX, componentes, maquetación</li>
+                            <li><strong>DBA:</strong> Evalúa impacto en BD, queries, performance</li>
+                            <li><strong>QA/Tester:</strong> Evalúa escenarios de testing y complejidad de QA</li>
+                            <li><strong>Business Analyst:</strong> Clarifica requisitos y valida criterios de aceptación</li>
+                            <li><strong>Product Owner:</strong> Presenta HU y responde dudas, pero <span style="color: #f44336;"><strong>NO estima</strong></span></li>
+                            <li><strong>Scrum Master:</strong> Facilita la reunión, pero <span style="color: #f44336;"><strong>NO estima</strong></span></li>
+                        </ul>
+                        <div style="background: #e3f2fd; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 11px; color: #1565c0;">
+                            ℹ️ <strong>¿Necesitas más detalle sobre cada rol?</strong> Consulta la sección 
+                            <strong>"👥 Roles del Equipo Scrum: ¿Quién Hace Qué?"</strong> arriba para entender en profundidad 
+                            las responsabilidades de cada miembro del equipo.
+                        </div>
+                        <div style="background: #fff3e0; padding: 8px; border-radius: 6px; margin-top: 10px; font-size: 11px; color: #e65100;">
+                            ⚠️ <strong>Importante:</strong> Solo quienes ejecutan el trabajo estiman. El PO y SM no votan.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-subsection">
+                    <h4>🎯 Proceso Paso a Paso del Dimensionamiento</h4>
+                    <div style="font-size: 12px; line-height: 1.6; color: #333;">
+                        <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #4caf50;">
+                            <strong>PASO 1: Presentación (2-3 min)</strong><br>
+                            El <strong>PO presenta la HU</strong>: lee el título, describe el valor de negocio, explica los criterios de aceptación.
+                            El BA puede complementar con detalles técnicos o funcionales.
+                        </div>
+                        
+                        <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #2196f3;">
+                            <strong>PASO 2: Clarificación (3-5 min)</strong><br>
+                            El <strong>equipo hace preguntas</strong>. Ejemplos:<br>
+                            • DBA: "¿Afecta a tablas con millones de registros?"<br>
+                            • Backend: "¿Qué pasa si la API externa falla?"<br>
+                            • Frontend: "¿Hay diseños o improvisamos?"<br>
+                            • Full Stack: "¿Esto incluye testing E2E?"<br>
+                            • QA: "¿Cuántos escenarios de prueba hay? ¿Requiere datos de prueba especiales?"<br>
+                            <span style="color: #d32f2f;">⛔ Si no se pueden responder, la HU NO está lista → vuelve al backlog.</span>
+                        </div>
+                        
+                        <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #ff9800;">
+                            <strong>PASO 3: Discusión Técnica (2-4 min)</strong><br>
+                            El equipo debate <strong>entre ellos</strong> (no con el PO) sobre cómo lo harían:<br>
+                            • Backend: "Podemos reusar el servicio X, pero hay que agregar validación Y"<br>
+                            • Frontend: "Tenemos el componente base, pero hay que customizarlo"<br>
+                            • DBA: "Necesito crear un índice, eso suma medio día"<br>
+                            <span style="color: #1976d2;">💡 Aquí cada especialista aporta su visión.</span>
+                        </div>
+                        
+                        <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #9c27b0;">
+                            <strong>PASO 4: Estimación Individual (1 min)</strong><br>
+                            Cada desarrollador piensa su estimación <strong>en silencio</strong> (Planning Poker: todos revelan al mismo tiempo con cartas).<br>
+                            Esto evita que la opinión del senior influencie a los juniors.
+                        </div>
+                        
+                        <div style="background: #f5f5f5; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #f44336;">
+                            <strong>PASO 5: Revelación y Negociación (3-8 min)</strong><br>
+                            Todos muestran su estimación simultáneamente.<br>
+                            <strong>Escenario típico:</strong><br>
+                            • 3 Backend: 5, 5, 8 puntos<br>
+                            • 2 Full Stack: 5, 5 puntos<br>
+                            • 1 Frontend: 3 puntos<br>
+                            • 1 DBA: 5 puntos<br>
+                            <br>
+                            <strong>¿Cómo negociar?</strong><br>
+                            1️⃣ Se pregunta a los <strong>extremos</strong> (el que dijo 3 y el que dijo 8): "¿Por qué?"<br>
+                            • Frontend (3 pts): "Para mí es solo agregar un formulario, 4 horas"<br>
+                            • Backend senior (8 pts): "Pero hay que integrar con SAP, validar datos, manejar errores, logging... es complejo"<br>
+                            <br>
+                            2️⃣ El equipo debate:<br>
+                            • Full Stack: "Tienes razón con SAP, pero ya tenemos el conector. ¿No es 5?"<br>
+                            • DBA: "Yo veo 5 también, el índice es rápido"<br>
+                            • Frontend: "Ah, no sabía lo de SAP. Cambio a 5"<br>
+                            <br>
+                            3️⃣ Se vuelve a estimar si no hay consenso. Generalmente en 2da ronda convergen.
+                        </div>
+                        
+                        <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #4caf50;">
+                            <strong>PASO 6: Decisión Final</strong><br>
+                            <span style="color: #2e7d32; font-weight: bold;">¿Quién decide?</span> 
+                            <strong style="color: #1b5e20;">EL EQUIPO POR CONSENSO</strong>, no una persona individual.<br>
+                            <br>
+                            <strong>Reglas de decisión:</strong><br>
+                            • Si hay <strong>consenso mayoritario</strong> (5 de 7 dijeron "5"): se acepta ese valor<br>
+                            • Si hay <strong>empate</strong> (3 dicen "5", 3 dicen "8"): se toma el <strong>mayor</strong> (buffer de seguridad)<br>
+                            • Si un <strong>especialista clave</strong> dice que es más complejo (ej: el DBA único dice "8" por tema crítico de BD), 
+                            el equipo <strong>respeta su expertise</strong><br>
+                            • El <strong>Scrum Master</strong> puede intervenir solo para recordar criterios o desempatar en casos extremos, 
+                            pero siempre buscando consenso del equipo<br>
+                            <br>
+                            <div style="background: white; padding: 8px; border-radius: 4px; margin-top: 8px; font-size: 11px; color: #d32f2f;">
+                                ⚠️ <strong>Nunca</strong> el PO, el manager o el SM imponen una estimación. 
+                                Si lo hacen, la estimación pierde sentido y el commitment no es real.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-subsection">
+                    <h4>🎭 Roles Especializados: ¿Quién Pesa Más?</h4>
+                    <div style="font-size: 12px; line-height: 1.7; color: #333;">
+                        <strong>Depende de la naturaleza de la HU:</strong><br>
+                        <br>
+                        <strong style="color: #4caf50;">HU de Backend pesado:</strong><br>
+                        • Los 3 Backend developers tienen más peso en la discusión<br>
+                        • El DBA es crítico si toca BD<br>
+                        • Frontend puede estimar su parte, pero confía en backend para el total<br>
+                        <br>
+                        <strong style="color: #2196f3;">HU de Frontend pesado:</strong><br>
+                        • El Frontend dev lidera la discusión<br>
+                        • Los Full Stack aportan perspectiva de integración<br>
+                        • Backend estima su parte (APIs), pero respeta la complejidad de UI<br>
+                        <br>
+                        <strong style="color: #ff9800;">HU Full Stack (mayoría):</strong><br>
+                        • Todos participan equitativamente<br>
+                        • Los Full Stack pueden "traducir" entre frontend y backend<br>
+                        • El consenso es más democrático<br>
+                        <br>
+                        <strong style="color: #9c27b0;">HU con Datos complejos:</strong><br>
+                        • El DBA tiene voz preponderante<br>
+                        • Si dice "esto es 8 pts por performance", el equipo debe escuchar<br>
+                        <br>
+                        <strong style="color: #e91e63;">HU con Testing complejo:</strong><br>
+                        • El QA/Tester lidera la evaluación de complejidad de pruebas<br>
+                        • Testing E2E, regresión, performance, múltiples ambientes suma puntos significativamente<br>
+                        <br>
+                        <div style="background: #fff3e0; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 11px; color: #e65100;">
+                            💡 <strong>Principio clave:</strong> El especialista que ejecutará la parte más compleja tiene más peso, 
+                            pero la decisión final siempre es del equipo completo. Nadie puede vetar unilateralmente.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="guide-subsection">
+                    <h4>⏱️ Duración de la Planning</h4>
+                    <div style="font-size: 12px; line-height: 1.6; color: #333;">
+                        <strong>Sprint de 2 semanas:</strong> Planning de 4 horas máximo (regla Scrum)<br>
+                        <strong>Sprint de 1 semana:</strong> Planning de 2 horas máximo<br>
+                        <br>
+                        <strong>Distribución típica para 15-20 HU:</strong><br>
+                        • 30 min: Revisión de objetivo del sprint y prioridades del PO<br>
+                        • 2-3 horas: Estimación historia por historia (10-15 min por HU)<br>
+                        • 30 min: Selección final de HU para el sprint según velocity<br>
+                        • 30 min: Descomposición de HU en tareas técnicas (opcional, puede ser después)<br>
+                        <br>
+                        <div style="background: #ffebee; padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 11px; color: #c62828;">
+                            🚨 Si una HU toma más de 15 minutos en estimarse, probablemente:<br>
+                            1. No está suficientemente clara → Vuelve al backlog<br>
+                            2. Es demasiado grande → Hay que dividirla<br>
+                            3. Requiere investigación → Crear un spike de 2-3 pts primero
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ejemplos de Referencia para Calibración -->
+        <div class="dependencies-section" style="background: #fff9e6; border-left-color: #ffc107; margin-bottom: 25px;">
+            <h3>📌 Ejemplos de Referencia (Calibración del Equipo)</h3>
+            <div style="font-size: 12px; line-height: 1.6; color: #666;">
+                <strong>1 punto:</strong> Cambio de texto, corrección de bug trivial, ajuste de CSS simple<br>
+                <strong>2 puntos:</strong> Agregar campo a formulario existente, endpoint REST simple con CRUD básico<br>
+                <strong>3 puntos:</strong> Nueva pantalla con formulario estándar, integración con API conocida<br>
+                <strong>5 puntos:</strong> Feature completo con backend+frontend, lógica de negocio media<br>
+                <strong>8 puntos:</strong> Feature complejo con múltiples pantallas, integraciones, algoritmos complejos<br>
+                <strong>13 puntos:</strong> ⚠️ Demasiado grande - DIVIDIR en historias más pequeñas
+            </div>
+            <div style="margin-top: 10px; padding: 8px; background: white; border-radius: 6px; font-size: 11px; color: #e65100;">
+                💡 <strong>Tip:</strong> Antes de estimar, pregúntense: "¿Esto es más parecido a X (que fue 3 pts) o a Y (que fue 5 pts)?"
+            </div>
+        </div>
+
+        <!-- Información de la Historia de Usuario -->
+        <div class="story-input">
+            <label for="story-title">📝 Título de la Historia</label>
+            <input type="text" id="story-title" placeholder="Como [rol], quiero [funcionalidad] para [beneficio]">
+        </div>
+
+        <!-- Preguntas Guía para Alinear el Equipo -->
+        <div class="calibration-questions">
+            <h3>❓ Preguntas Clave Antes de Estimar</h3>
+            <div class="question-item">
+                <strong>1. ¿Todos entienden igual el alcance?</strong> Si hay confusión, la HU no está lista para estimar.
+            </div>
+            <div class="question-item">
+                <strong>2. ¿Ya hicimos algo similar antes?</strong> Comparar con historias pasadas ayuda a calibrar.
+            </div>
+            <div class="question-item">
+                <strong>3. ¿Hay puntos que no están claros?</strong> La incertidumbre infla la estimación. ¿Necesitamos un spike?
+            </div>
+            <div class="question-item">
+                <strong>4. ¿Puedo explicar en 2 minutos qué hay que hacer?</strong> Si no, quizás es demasiado grande.
+            </div>
+            <div class="question-item">
+                <strong>5. ¿Cabe en un sprint?</strong> Si la respuesta es "no estoy seguro", probablemente > 8 puntos.
+            </div>
+        </div>
+
+        <div class="story-input">
+            <label for="story-notes">📋 Notas / Criterios de Aceptación</label>
+            <textarea id="story-notes" placeholder="Describe los criterios de aceptación o consideraciones importantes..."></textarea>
+        </div>
+
+        <!-- Contexto del Equipo -->
+        <div class="dependencies-section" style="background: #e8f5e9; border-left-color: #4caf50;">
+            <h3>👥 Contexto del Equipo con esta Tecnología</h3>
+            <div class="likert-scale" style="gap: 8px;">
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="experiencia-1" name="experiencia" value="1" checked>
+                    <label for="experiencia-1" style="padding: 12px 8px;">
+                        <span class="likert-value" style="font-size: 16px;">1</span>
+                        <span class="likert-label" style="font-size: 10px;">Primera vez</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="experiencia-2" name="experiencia" value="2">
+                    <label for="experiencia-2" style="padding: 12px 8px;">
+                        <span class="likert-value" style="font-size: 16px;">2</span>
+                        <span class="likert-label" style="font-size: 10px;">Poco familiarizado</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="experiencia-3" name="experiencia" value="3">
+                    <label for="experiencia-3" style="padding: 12px 8px;">
+                        <span class="likert-value" style="font-size: 16px;">3</span>
+                        <span class="likert-label" style="font-size: 10px;">Moderado</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="experiencia-4" name="experiencia" value="4">
+                    <label for="experiencia-4" style="padding: 12px 8px;">
+                        <span class="likert-value" style="font-size: 16px;">4</span>
+                        <span class="likert-label" style="font-size: 10px;">Expertos</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="experiencia-5" name="experiencia" value="5">
+                    <label for="experiencia-5" style="padding: 12px 8px;">
+                        <span class="likert-value" style="font-size: 16px;">5</span>
+                        <span class="likert-label" style="font-size: 10px;">Ya lo hicimos</span>
+                    </label>
+                </div>
+            </div>
+            <div style="font-size: 11px; color: #2e7d32; margin-top: 8px;">
+                Este factor ajustará automáticamente la estimación según la familiaridad del equipo
+            </div>
+        </div>
+
+        <!-- Dependencias y Bloqueadores -->
+        <div class="dependencies-section">
+            <h3>⚠️ Dependencias y Bloqueadores</h3>
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; line-height: 1.6; color: #555; border-left: 3px solid #ff9800;">
+                <strong style="color: #f57c00; font-size: 13px;">📋 ¿Para qué sirve esta sección?</strong><br><br>
+                Marca las dependencias externas que pueden <strong>bloquear o retrasar</strong> el trabajo del equipo. 
+                <br><br>
+                <div style="background: #e3f2fd; padding: 10px; border-radius: 6px; margin-top: 8px;">
+                    <strong style="color: #1976d2;">🔍 ¿Afecta a la medición de puntos?</strong><br>
+                    <span style="color: #0d47a1;">
+                        <strong>NO directamente.</strong> Los Story Points miden el <strong>ESFUERZO del equipo</strong> (trabajo activo), 
+                        NO el tiempo calendario. Las dependencias NO suman puntos.
+                    </span>
+                </div>
+                <br>
+                <strong style="color: #f57c00;">Entonces, ¿por qué marcarlas?</strong>
+                <ul style="margin: 8px 0 8px 20px; color: #666;">
+                    <li><strong>Genera alertas inteligentes:</strong> Si marcas ≥3 dependencias, recibirás una recomendación de riesgo alto</li>
+                    <li><strong>Visibilidad del riesgo:</strong> Ayuda al equipo a anticipar bloqueos durante el sprint</li>
+                    <li><strong>Contexto para planificación:</strong> Aunque el esfuerzo sea bajo, el tiempo calendario puede ser mayor</li>
+                    <li><strong>Priorización:</strong> Permite identificar qué dependencias resolver primero</li>
+                </ul>
+                <div style="background: #fff3e0; padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 11px; color: #e65100;">
+                    💡 <strong>Ejemplo:</strong> Una HU que requiere "Diseño" puede ser 2 puntos de esfuerzo técnico, 
+                    pero si diseño tarda 3 días en entregar los mockups, el tiempo calendario será mayor. 
+                    Los 2 puntos NO cambian, pero el equipo está consciente del riesgo de espera.
+                </div>
+            </div>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="dep-backend" name="dependencies">
+                    <label for="dep-backend">Depende de Backend</label>
+                    <span class="tooltip">
+                        <strong>Depende de Backend:</strong> La HU requiere que el equipo de backend desarrolle o modifique APIs, servicios, lógica de negocio o bases de datos antes de que puedas completar tu trabajo. Esto puede generar esperas o bloqueos.
+                    </span>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="dep-design" name="dependencies">
+                    <label for="dep-design">Requiere Diseño</label>
+                    <span class="tooltip">
+                        <strong>Requiere Diseño:</strong> Necesitas que UX/UI entregue mockups, wireframes, especificaciones visuales o guías de diseño antes de implementar. Sin esto, tendrás que improvisar o esperar, lo que suma incertidumbre.
+                    </span>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="dep-api" name="dependencies">
+                    <label for="dep-api">Requiere API Externa</label>
+                    <span class="tooltip">
+                        <strong>Requiere API Externa:</strong> Tu HU depende de servicios de terceros (SAP, APIs externas, microservicios de otros equipos). Esto agrega riesgo: disponibilidad, autenticación, documentación incompleta, cambios sin aviso.
+                    </span>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="dep-testing" name="dependencies">
+                    <label for="dep-testing">Requiere Testing Extensivo</label>
+                    <span class="tooltip">
+                        <strong>Requiere Testing Extensivo:</strong> La funcionalidad necesita pruebas E2E, testing en múltiples ambientes, regresión completa, performance testing o coordinación con QA. No basta con unit tests básicos, hay que considerar este tiempo extra.
+                    </span>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="dep-docs" name="dependencies">
+                    <label for="dep-docs">Requiere Documentación</label>
+                    <span class="tooltip">
+                        <strong>Requiere Documentación:</strong> La HU necesita documentación técnica (APIs, arquitectura), manuales de usuario, actualización de wikis o capacitación al equipo. Esto suma tiempo adicional que a menudo se subestima en las estimaciones.
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="criteria-section">
+            <div class="criteria-label">⏱️ Volumen de Trabajo</div>
+            <div class="criteria-description">¿Cuánto TRABAJO ACTIVO de desarrollo requiere? Considera solo tiempo real de codificación/implementación. NO incluyas esperas, aprobaciones, bloqueos o tiempo entre tareas. Piensa: "Si me siento sin interrupciones, ¿cuánto tardo?"</div>
+            <div class="likert-scale">
+                <div class="likert-option">
+                    <input type="radio" id="tiempo-1" name="tiempo" value="1" checked>
+                    <label for="tiempo-1">
+                        <span class="likert-value">1</span>
+                        <span class="likert-label">Mínimo<br>(&lt;4 horas)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="tiempo-2" name="tiempo" value="2">
+                    <label for="tiempo-2">
+                        <span class="likert-value">2</span>
+                        <span class="likert-label">Bajo<br>(1 día trabajo)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="tiempo-3" name="tiempo" value="3">
+                    <label for="tiempo-3">
+                        <span class="likert-value">3</span>
+                        <span class="likert-label">Medio<br>(2-3 días trabajo)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="tiempo-4" name="tiempo" value="4">
+                    <label for="tiempo-4">
+                        <span class="likert-value">4</span>
+                        <span class="likert-label">Alto<br>(1 semana trabajo)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="tiempo-5" name="tiempo" value="5">
+                    <label for="tiempo-5">
+                        <span class="likert-value">5</span>
+                        <span class="likert-label">Muy Alto<br>(&gt;1 semana trabajo)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="criteria-section">
+            <div class="criteria-label">💪 Esfuerzo Técnico</div>
+            <div class="criteria-description">¿Qué tan demandante es técnicamente? Considera: complejidad del código, cantidad de archivos, integraciones entre sistemas, refactoring necesario.</div>
+            <div class="likert-scale">
+                <div class="likert-option">
+                    <input type="radio" id="esfuerzo-1" name="esfuerzo" value="1" checked>
+                    <label for="esfuerzo-1">
+                        <span class="likert-value">1</span>
+                        <span class="likert-label">Trivial<br>(Cambio menor)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="esfuerzo-2" name="esfuerzo" value="2">
+                    <label for="esfuerzo-2">
+                        <span class="likert-value">2</span>
+                        <span class="likert-label">Bajo<br>(Simple)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="esfuerzo-3" name="esfuerzo" value="3">
+                    <label for="esfuerzo-3">
+                        <span class="likert-value">3</span>
+                        <span class="likert-label">Medio<br>(Normal)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="esfuerzo-4" name="esfuerzo" value="4">
+                    <label for="esfuerzo-4">
+                        <span class="likert-value">4</span>
+                        <span class="likert-label">Alto<br>(Complejo)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="esfuerzo-5" name="esfuerzo" value="5">
+                    <label for="esfuerzo-5">
+                        <span class="likert-value">5</span>
+                        <span class="likert-label">Muy Alto<br>(Muy complejo)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="criteria-section">
+            <div class="criteria-label">🧩 Complejidad Técnica</div>
+            <div class="criteria-description">¿Qué tan difícil es el problema a resolver? Considera: algoritmos complejos, arquitectura, patrones de diseño, performance, escalabilidad.</div>
+            <div class="likert-scale">
+                <div class="likert-option">
+                    <input type="radio" id="complejidad-1" name="complejidad" value="1" checked>
+                    <label for="complejidad-1">
+                        <span class="likert-value">1</span>
+                        <span class="likert-label">Muy Simple<br>(Conocido)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="complejidad-2" name="complejidad" value="2">
+                    <label for="complejidad-2">
+                        <span class="likert-value">2</span>
+                        <span class="likert-label">Simple<br>(Familiar)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="complejidad-3" name="complejidad" value="3">
+                    <label for="complejidad-3">
+                        <span class="likert-value">3</span>
+                        <span class="likert-label">Moderada<br>(Entendible)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="complejidad-4" name="complejidad" value="4">
+                    <label for="complejidad-4">
+                        <span class="likert-value">4</span>
+                        <span class="likert-label">Compleja<br>(Desafiante)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="complejidad-5" name="complejidad" value="5">
+                    <label for="complejidad-5">
+                        <span class="likert-value">5</span>
+                        <span class="likert-label">Muy Compleja<br>(Difícil)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="criteria-section">
+            <div class="criteria-label">❓ Incertidumbre / Riesgo</div>
+            <div class="criteria-description">¿Qué tanto desconoces sobre esta tarea? Considera: requisitos poco claros, tecnología nueva, dependencias inciertas, potenciales cambios de alcance.</div>
+            <div class="likert-scale">
+                <div class="likert-option">
+                    <input type="radio" id="incertidumbre-1" name="incertidumbre" value="1" checked>
+                    <label for="incertidumbre-1">
+                        <span class="likert-value">1</span>
+                        <span class="likert-label">Nula<br>(Todo claro)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="incertidumbre-2" name="incertidumbre" value="2">
+                    <label for="incertidumbre-2">
+                        <span class="likert-value">2</span>
+                        <span class="likert-label">Baja<br>(Casi claro)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="incertidumbre-3" name="incertidumbre" value="3">
+                    <label for="incertidumbre-3">
+                        <span class="likert-value">3</span>
+                        <span class="likert-label">Media<br>(Dudas leves)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="incertidumbre-4" name="incertidumbre" value="4">
+                    <label for="incertidumbre-4">
+                        <span class="likert-value">4</span>
+                        <span class="likert-label">Alta<br>(Muchas dudas)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="incertidumbre-5" name="incertidumbre" value="5">
+                    <label for="incertidumbre-5">
+                        <span class="likert-value">5</span>
+                        <span class="likert-label">Muy Alta<br>(Desconocido)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="criteria-section">
+            <div class="criteria-label">🧪 Complejidad de Testing/QA</div>
+            <div class="criteria-description">¿Qué tan complejo es testear esta funcionalidad? Considera: cantidad de escenarios, casos edge, testing E2E, regresión, performance, múltiples navegadores/dispositivos, datos de prueba.</div>
+            <div class="likert-scale">
+                <div class="likert-option">
+                    <input type="radio" id="testing-1" name="testing" value="1" checked>
+                    <label for="testing-1">
+                        <span class="likert-value">1</span>
+                        <span class="likert-label">Trivial<br>(Happy path)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="testing-2" name="testing" value="2">
+                    <label for="testing-2">
+                        <span class="likert-value">2</span>
+                        <span class="likert-label">Bajo<br>(Pocos casos)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="testing-3" name="testing" value="3">
+                    <label for="testing-3">
+                        <span class="likert-value">3</span>
+                        <span class="likert-label">Medio<br>(Testing normal)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="testing-4" name="testing" value="4">
+                    <label for="testing-4">
+                        <span class="likert-value">4</span>
+                        <span class="likert-label">Alto<br>(E2E/Regresión)</span>
+                    </label>
+                </div>
+                <div class="likert-option">
+                    <input type="radio" id="testing-5" name="testing" value="5">
+                    <label for="testing-5">
+                        <span class="likert-value">5</span>
+                        <span class="likert-label">Muy Alto<br>(Crítico/Extenso)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <div class="result-label">Puntos de Historia Estimados</div>
+            <div class="story-points" id="story-points">1</div>
+            <div class="average-score">Promedio ponderado: <span id="average">1.00</span></div>
+            <div id="criteria-breakdown"></div>
+            
+            <!-- Selección Rápida de Fibonacci -->
+            <div style="margin-top: 20px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">O selecciona directamente:</div>
+                <div class="quick-select">
+                    <button class="quick-select-btn" onclick="setDirectPoints(1)">1</button>
+                    <button class="quick-select-btn" onclick="setDirectPoints(2)">2</button>
+                    <button class="quick-select-btn" onclick="setDirectPoints(3)">3</button>
+                    <button class="quick-select-btn" onclick="setDirectPoints(5)">5</button>
+                    <button class="quick-select-btn" onclick="setDirectPoints(8)">8</button>
+                    <button class="quick-select-btn" onclick="setDirectPoints(13)">13</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button class="save-estimation-btn" onclick="saveEstimation()">💾 Guardar Estimación</button>
+                <button class="reset-btn" onclick="resetValues()">🔄 Nueva Historia</button>
+            </div>
+            
+            <div class="warning" id="warning">
+                ⚠️ Esta tarea requiere REFINAMIENTO<br>
+                <small>Divídela en historias más pequeñas (≤ 8 puntos)</small>
+            </div>
+
+            <!-- Recomendaciones Inteligentes -->
+            <div class="recommendation-box" id="recommendations">
+                <h3>💡 Recomendaciones del Equipo</h3>
+                <ul id="recommendation-list"></ul>
+            </div>
+
+            <!-- Info de Capacidad del Sprint -->
+            <div class="team-capacity-info">
+                <strong>📊 Referencia:</strong> Sprint típico de 2 semanas = ~20-30 puntos por desarrollador
+            </div>
+
+            <!-- Desglose Visual -->
+            <div class="visual-breakdown">
+                <h4>📊 Desglose Visual de Criterios</h4>
+                <div class="bar-chart" id="visual-chart">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Señales de Alerta -->
+        <div class="red-flags">
+            <h3>🚩 Señales de que la Estimación Puede Estar Mal</h3>
+            <ul>
+                <li><strong>Estimación muy rápida:</strong> Si tardaron menos de 2 minutos, probablemente falta análisis</li>
+                <li><strong>Gran diferencia entre estimaciones:</strong> Si un dev dice 2 y otro dice 8, hay malentendidos</li>
+                <li><strong>Mucho "depende de...":</strong> Si hay muchos condicionales, la HU no está clara</li>
+                <li><strong>Siempre estimando 5 u 8:</strong> Falta granularidad, revisar los criterios</li>
+                <li><strong>Historias "urgentes" siempre pequeñas:</strong> Cuidado con presión que distorsiona estimaciones</li>
+            </ul>
+        </div>
+
+        <!-- Comparación con Historias Similares -->
+        <div class="comparison-box" id="comparison-box" style="display: none;">
+            <h3>🔍 Historias Similares del Historial</h3>
+            <div id="comparison-list">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+
+        <div class="fibonacci-info">
+            <div><strong>🎯 Reglas de Oro para Buen Dimensionamiento:</strong></div>
+            <div class="fibonacci-sequence">
+                <strong>1.</strong> Si tienes dudas entre 2 números, elige el mayor (buffer de seguridad)<br>
+                <strong>2.</strong> Si llegas a 13, SIEMPRE dividir - no negociable<br>
+                <strong>3.</strong> Estimar en equipo > estimar solo (reduce sesgos individuales)<br>
+                <strong>4.</strong> Comparar siempre con historias pasadas (tu mejor referencia)<br>
+                <strong>5.</strong> Revisar estimaciones en retrospectiva (aprender y calibrar)
+            </div>
+            <div style="margin-top: 10px; font-size: 11px; color: #999;">
+                <em>Pesos aplicados (filosofía Scrum): Volumen 30% • Complejidad 30% • Incertidumbre 20% • Esfuerzo 10% • Testing 10%</em>
+            </div>
+            <div style="margin-top: 8px; padding: 10px; background: #e3f2fd; border-radius: 6px; font-size: 11px; color: #1565c0;">
+                💡 <strong>Filosofía Scrum:</strong> Los Story Points miden el ESFUERZO del equipo (trabajo activo), NO los días calendario. 
+                Las esperas, bloqueos o aprobaciones NO cuentan como esfuerzo - para eso marca las dependencias correspondientes.
+            </div>
+        </div>
+
+        <!-- Historial de Estimaciones -->
+        <div class="history-section" id="history-section" style="display: none;">
+            <h3>📜 Historial de Estimaciones (Sesión Actual)</h3>
+            <button class="export-btn" onclick="exportEstimations()">📥 Exportar a CSV</button>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ============================================
+           MEJORAS UX/UI - FUNCIONALIDADES AVANZADAS
+           ============================================ */
+
+        // Secuencia de Fibonacci para Story Points
+        const fibonacci = [1, 2, 3, 5, 8, 13];
+
+        // Pesos para cada criterio (ajustados según filosofía Scrum)
+        const weights = {
+            tiempo: 0.30,        // 30% - Volumen de trabajo activo (sin esperas)
+            complejidad: 0.30,   // 30% - Complejidad técnica (qué tan difícil es)
+            incertidumbre: 0.20, // 20% - Riesgo e incertidumbre
+            esfuerzo: 0.10,      // 10% - Esfuerzo técnico adicional
+            testing: 0.10        // 10% - Complejidad de testing
+        };
+
+        // Historial de estimaciones y calibración
+        let estimationHistory = [];
+        let teamCalibration = {
+            totalEstimations: 0,
+            avgDifference: 0
+        };
+
+        /* ============================================
+           MEJORA: DARK MODE CON PERSISTENCIA
+           ============================================ */
+        function initTheme() {
+            // Detectar preferencia del sistema o cargar desde localStorage
+            const savedTheme = localStorage.getItem('estimator-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            applyTheme(theme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            applyTheme(newTheme);
+            localStorage.setItem('estimator-theme', newTheme);
+            
+            showToast(
+                newTheme === 'dark' ? 'Modo oscuro activado 🌙' : 'Modo claro activado ☀️',
+                'success'
+            );
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            
+            if (theme === 'dark') {
+                icon.textContent = '☀️';
+                text.textContent = 'Modo Claro';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Modo Oscuro';
+            }
+        }
+
+        /* ============================================
+           MEJORA: TOAST NOTIFICATIONS
+           ============================================ */
+        function showToast(message, type = 'success') {
+            // Remover toast existente si hay
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span style="font-size: 20px;">
+                    ${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}
+                </span>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Auto-hide después de 3 segundos
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /* ============================================
+           MEJORA: AUTO-GUARDADO CON LOCALSTORAGE
+           ============================================ */
+        function autoSave() {
+            const currentState = {
+                title: document.getElementById('story-title').value,
+                notes: document.getElementById('story-notes').value,
+                tiempo: getSelectedValue('tiempo'),
+                esfuerzo: getSelectedValue('esfuerzo'),
+                complejidad: getSelectedValue('complejidad'),
+                incertidumbre: getSelectedValue('incertidumbre'),
+                testing: getSelectedValue('testing'),
+                experiencia: getSelectedValue('experiencia'),
+                dependencies: Array.from(document.querySelectorAll('input[name="dependencies"]:checked')).map(cb => cb.id),
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('estimator-draft', JSON.stringify(currentState));
+        }
+
+        function loadDraft() {
+            const draft = localStorage.getItem('estimator-draft');
+            if (!draft) return;
+            
+            try {
+                const state = JSON.parse(draft);
+                
+                // Verificar si el draft es reciente (menos de 1 hora)
+                const draftTime = new Date(state.timestamp);
+                const now = new Date();
+                const hoursDiff = (now - draftTime) / (1000 * 60 * 60);
+                
+                if (hoursDiff > 1) {
+                    localStorage.removeItem('estimator-draft');
+                    return;
+                }
+                
+                // Restaurar valores
+                document.getElementById('story-title').value = state.title || '';
+                document.getElementById('story-notes').value = state.notes || '';
+                
+                // Restaurar criterios
+                if (state.tiempo) document.getElementById(`tiempo-${state.tiempo}`).checked = true;
+                if (state.esfuerzo) document.getElementById(`esfuerzo-${state.esfuerzo}`).checked = true;
+                if (state.complejidad) document.getElementById(`complejidad-${state.complejidad}`).checked = true;
+                if (state.incertidumbre) document.getElementById(`incertidumbre-${state.incertidumbre}`).checked = true;
+                if (state.testing) document.getElementById(`testing-${state.testing}`).checked = true;
+                if (state.experiencia) document.getElementById(`experiencia-${state.experiencia}`).checked = true;
+                
+                // Restaurar dependencias
+                state.dependencies.forEach(depId => {
+                    const checkbox = document.getElementById(depId);
+                    if (checkbox) checkbox.checked = true;
+                });
+                
+                calculateStoryPoints();
+                showToast('Borrador restaurado 📝', 'success');
+            } catch (e) {
+                console.error('Error loading draft:', e);
+            }
+        }
+
+        /* ============================================
+           MEJORA: CARGAR HISTORIAL PERSISTENTE
+           ============================================ */
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('estimator-history');
+            if (savedHistory) {
+                try {
+                    estimationHistory = JSON.parse(savedHistory);
+                    updateHistoryDisplay();
+                } catch (e) {
+                    console.error('Error loading history:', e);
+                }
+            }
+        }
+
+        function saveHistory() {
+            try {
+                localStorage.setItem('estimator-history', JSON.stringify(estimationHistory));
+            } catch (e) {
+                console.error('Error saving history:', e);
+                showToast('Error al guardar historial', 'error');
+            }
+        }
+
+        /* ============================================
+           MEJORA: INDICADOR DE PROGRESO VISUAL
+           ============================================ */
+        function updateProgress() {
+            const dots = document.querySelectorAll('.progress-dot');
+            const title = document.getElementById('story-title').value;
+            const criteriaFilled = ['tiempo', 'esfuerzo', 'complejidad', 'incertidumbre', 'testing', 'experiencia']
+                .filter(name => getSelectedValue(name) > 1).length;
+            
+            // Activar dots según progreso
+            dots.forEach((dot, index) => {
+                dot.classList.remove('active');
+            });
+            
+            if (title.length > 0) dots[0].classList.add('active');
+            if (criteriaFilled >= 2) dots[1].classList.add('active');
+            if (criteriaFilled >= 4) dots[2].classList.add('active');
+            if (criteriaFilled === 6) dots[3].classList.add('active');
+        }
+
+        /**
+         * Mapeo mejorado de promedio ponderado a Fibonacci
+         * Basado en experiencia de Scrum: 
+         * - Valores bajos (1-1.8): Tareas triviales = 1 punto
+         * - Valores bajos-medios (1.8-2.6): Tareas simples = 2 puntos
+         * - Valores medios (2.6-3.8): Tareas normales = 3 puntos
+         * - Valores altos (3.8-4.5): Tareas complejas = 5 puntos
+         * - Valores muy altos (4.5+): Tareas muy complejas = 8 puntos
+         * - Valores extremos (promedio ponderado > 4.8): Requiere refinamiento
+         */
+        function calculateStoryPoints() {
+            // Obtener valores seleccionados
+            const tiempo = getSelectedValue('tiempo');
+            const esfuerzo = getSelectedValue('esfuerzo');
+            const complejidad = getSelectedValue('complejidad');
+            const incertidumbre = getSelectedValue('incertidumbre');
+            const testing = getSelectedValue('testing');
+            const experiencia = getSelectedValue('experiencia');
+            
+            // Calcular promedio ponderado base
+            let weightedAverage = 
+                (tiempo * weights.tiempo) +
+                (esfuerzo * weights.esfuerzo) +
+                (complejidad * weights.complejidad) +
+                (incertidumbre * weights.incertidumbre) +
+                (testing * weights.testing);
+            
+            // AJUSTE POR EXPERIENCIA DEL EQUIPO (esto es crítico en la realidad)
+            // Si el equipo es experto (4-5), reduce la complejidad percibida
+            // Si es novato (1-2), aumenta la complejidad percibida
+            const experienceFactor = {
+                1: 1.5,   // Primera vez: +50% de dificultad
+                2: 1.25,  // Poco familiarizado: +25%
+                3: 1.0,   // Moderado: sin cambio
+                4: 0.80,  // Expertos: -20%
+                5: 0.60   // Ya lo hicimos: -40%
+            };
+            
+            weightedAverage = weightedAverage * experienceFactor[experiencia];
+            
+            // Lógica mejorada de mapeo a Fibonacci
+            let storyPoints;
+            
+            if (weightedAverage <= 1.8) {
+                storyPoints = 1;  // Tareas triviales
+            } else if (weightedAverage <= 2.6) {
+                storyPoints = 2;  // Tareas simples
+            } else if (weightedAverage <= 3.8) {
+                storyPoints = 3;  // Tareas normales
+            } else if (weightedAverage <= 4.5) {
+                storyPoints = 5;  // Tareas complejas
+            } else {
+                storyPoints = 8;  // Tareas muy complejas
+            }
+            
+            // Regla especial: Si todos los criterios son 5, requiere refinamiento
+            if (tiempo === 5 && esfuerzo === 5 && complejidad === 5 && incertidumbre === 5 && testing === 5) {
+                storyPoints = 13;
+            }
+            
+            // Regla de incertidumbre extrema: Si incertidumbre es 5 y promedio > 4
+            if (incertidumbre === 5 && weightedAverage > 4.2) {
+                storyPoints = 13;
+            }
+
+            // Regla de testing extremo: Si testing es 5 y tiempo >= 4
+            if (testing === 5 && tiempo >= 4) {
+                storyPoints = Math.min(storyPoints + 2, 13); // Testing crítico suma puntos
+            }
+            
+            // Ajuste adicional: Si experiencia es 1 (primera vez) y weighted > 3.5
+            if (experiencia === 1 && weightedAverage > 3.5) {
+                storyPoints = Math.min(storyPoints + 2, 13); // Aumentar pero no exceder 13
+            }
+            
+            // Actualizar interfaz
+            document.getElementById('story-points').textContent = storyPoints;
+            document.getElementById('average').textContent = weightedAverage.toFixed(2);
+            
+            // Mostrar desglose de criterios
+            updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, experienceFactor[experiencia]);
+            
+            // Mostrar advertencia si requiere refinamiento
+            const warning = document.getElementById('warning');
+            if (storyPoints >= 13) {
+                warning.classList.add('show');
+            } else {
+                warning.classList.remove('show');
+            }
+
+            // Generar recomendaciones inteligentes
+            generateRecommendations(tiempo, esfuerzo, complejidad, incertidumbre, testing, storyPoints);
+            
+            // Actualizar desglose visual
+            updateVisualBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia);
+            
+            // Buscar historias similares
+            findSimilarStories(tiempo, esfuerzo, complejidad, incertidumbre, testing);
+        }
+
+        // Función para generar recomendaciones inteligentes
+        function generateRecommendations(tiempo, esfuerzo, complejidad, incertidumbre, testing, points) {
+            const recommendations = [];
+            const recBox = document.getElementById('recommendations');
+            const recList = document.getElementById('recommendation-list');
+            const experiencia = getSelectedValue('experiencia');
+
+            // Recomendaciones basadas en experiencia
+            if (experiencia === 1) {
+                recommendations.push('⚠️ PRIMERA VEZ: Asigna un desarrollador senior como mentor o considera pair programming. Agrega buffer extra.');
+            }
+            
+            if (experiencia <= 2 && complejidad >= 4) {
+                recommendations.push('🎓 Poca experiencia + Alta complejidad: Reserva tiempo para investigación. Considera estimar más alto.');
+            }
+
+            // Señales de que la HU no está lista
+            if (incertidumbre >= 4 && experiencia <= 2) {
+                recommendations.push('🛑 ALTO: Mucha incertidumbre + poca experiencia = Riesgo muy alto. ¿La HU está realmente lista para estimar?');
+            }
+
+            // Recomendaciones basadas en valores altos
+            if (incertidumbre >= 4) {
+                recommendations.push('🔬 Alta incertidumbre: La HU no está suficientemente definida. Considera hacer un spike técnico ANTES de commitear.');
+            }
+            
+            if (complejidad >= 4 && tiempo >= 4) {
+                recommendations.push('✂️ Tarea compleja y larga: DIVIDIRLA en subtareas. Una HU grande es difícil de testear, revisar y deployar.');
+            }
+
+            if (testing >= 4) {
+                recommendations.push('🧪 Testing complejo: El esfuerzo de QA es significativo. Asegúrate de incluir tiempo para preparación de datos de prueba y casos edge.');
+            }
+
+            if (testing === 5 && tiempo >= 4) {
+                recommendations.push('🚨 Testing crítico + tiempo alto: Esta HU puede consumir mucho tiempo de QA. Considera automatización o dividirla.');
+            }
+
+            if (esfuerzo === 5) {
+                recommendations.push('👥 Esfuerzo máximo: ¿Es realista completarla en un sprint? Considera pair programming o dividirla.');
+            }
+
+            if (points >= 8) {
+                recommendations.push('📦 8 puntos: Pregunta crítica - ¿Es realmente UNA historia o son varias? ¿Se puede dividir por valor de negocio?');
+            }
+
+            const dependencies = document.querySelectorAll('input[name="dependencies"]:checked').length;
+            if (dependencies >= 3) {
+                recommendations.push(`🔗 ${dependencies} dependencias: RIESGO ALTO de bloqueos. ¿Puedes priorizar las dependencias primero o reducirlas?`);
+            }
+
+            // Recomendación específica Scrum: Alto volumen + dependencias
+            if (tiempo >= 3 && dependencies >= 2) {
+                recommendations.push('⏰ Alto volumen de trabajo + dependencias: El tiempo CALENDARIO será mayor que el esfuerzo ACTIVO. Considera resolver dependencias primero o dividir la HU.');
+            }
+
+            // Recomendaciones para equipos con problemas de dimensionamiento
+            if (tiempo >= 4 && esfuerzo >= 4 && complejidad >= 4) {
+                recommendations.push('⚠️ TODOS LOS FACTORES ALTOS: Esta HU es candidata perfecta para dividir. ¿Hay un MVP más pequeño dentro?');
+            }
+
+            // Recomendaciones basadas en valores bajos
+            if (tiempo === 1 && esfuerzo === 1 && complejidad === 1) {
+                recommendations.push('⚡ Tarea muy simple: ¿Podría agruparse con otras historias similares? Evita HUs demasiado pequeñas (overhead de gestión).');
+            }
+
+            // Recomendación de realidad
+            if (experiencia >= 4 && points <= 2) {
+                recommendations.push('✅ Equipo experto + tarea simple: Estimación probablemente precisa. Buena candidata para el sprint.');
+            }
+
+            // Señal de problema común en equipos
+            if (points === 5 && tiempo === 3 && esfuerzo === 3 && complejidad === 3 && incertidumbre === 3) {
+                recommendations.push('🤔 Todos en 3: Cuidado con estimar "en el medio" por default. ¿Realmente analizaron o es estimación rápida?');
+            }
+
+            // Mostrar u ocultar el cuadro de recomendaciones
+            if (recommendations.length > 0) {
+                recList.innerHTML = recommendations.map(rec => `<li>${rec}</li>`).join('');
+                recBox.classList.add('show');
+            } else {
+                recBox.classList.remove('show');
+            }
+        }
+
+        // Función para guardar la estimación
+        function saveEstimation() {
+            const title = document.getElementById('story-title').value.trim();
+            const notes = document.getElementById('story-notes').value.trim();
+            const points = parseInt(document.getElementById('story-points').textContent);
+            
+            if (!title) {
+                showToast('⚠️ Por favor ingresa un título para la historia', 'warning');
+                document.getElementById('story-title').focus();
+                return;
+            }
+
+            const estimation = {
+                title: title,
+                notes: notes,
+                points: points,
+                tiempo: getSelectedValue('tiempo'),
+                esfuerzo: getSelectedValue('esfuerzo'),
+                complejidad: getSelectedValue('complejidad'),
+                incertidumbre: getSelectedValue('incertidumbre'),
+                testing: getSelectedValue('testing'),
+                experiencia: getSelectedValue('experiencia'),
+                dependencies: Array.from(document.querySelectorAll('input[name="dependencies"]:checked')).map(cb => cb.nextElementSibling.textContent),
+                timestamp: new Date().toLocaleString('es-ES')
+            };
+
+            estimationHistory.push(estimation);
+            saveHistory(); // Guardar en localStorage
+            updateHistoryDisplay();
+            
+            // Limpiar draft
+            localStorage.removeItem('estimator-draft');
+            
+            showToast(`✅ Historia "${title}" guardada con ${points} puntos`, 'success');
+            
+            // Animar el botón
+            const btn = event.target;
+            btn.classList.add('btn-loading');
+            setTimeout(() => btn.classList.remove('btn-loading'), 600);
+        }
+
+        // Función para actualizar desglose visual
+        function updateVisualBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia) {
+            const chart = document.getElementById('visual-chart');
+            const maxValue = 5;
+            
+            const criteria = [
+                { label: 'Volumen', value: tiempo, color: '#667eea' },
+                { label: 'Esfuerzo', value: esfuerzo, color: '#764ba2' },
+                { label: 'Complejidad', value: complejidad, color: '#f093fb' },
+                { label: 'Incertidumbre', value: incertidumbre, color: '#4facfe' },
+                { label: 'Testing', value: testing, color: '#00bcd4' },
+                { label: 'Experiencia', value: experiencia, color: '#43e97b' }
+            ];
+            
+            chart.innerHTML = criteria.map(item => `
+                <div class="bar-item">
+                    <div class="bar-label">${item.label}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: ${(item.value / maxValue) * 100}%; background: ${item.color};">
+                            <span class="bar-value">${item.value}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Función para buscar historias similares
+        function findSimilarStories(tiempo, esfuerzo, complejidad, incertidumbre, testing) {
+            if (estimationHistory.length === 0) {
+                document.getElementById('comparison-box').style.display = 'none';
+                return;
+            }
+            
+            // Buscar historias con criterios similares (±1 de diferencia)
+            const similar = estimationHistory.filter(est => {
+                const diff = Math.abs(est.tiempo - tiempo) + 
+                           Math.abs(est.esfuerzo - esfuerzo) + 
+                           Math.abs(est.complejidad - complejidad) + 
+                           Math.abs(est.incertidumbre - incertidumbre) +
+                           Math.abs(est.testing - testing);
+                return diff <= 4; // Similar si la diferencia total es ≤ 4
+            }).slice(-3); // Últimas 3
+            
+            if (similar.length > 0) {
+                const comparisonBox = document.getElementById('comparison-box');
+                const comparisonList = document.getElementById('comparison-list');
+                
+                comparisonList.innerHTML = similar.map(est => `
+                    <div class="comparison-item" onclick="alert('Historia: ${est.title}\\nPuntos: ${est.points}\\nNotas: ${est.notes}')">
+                        <strong>${est.points} pts</strong> - ${est.title}
+                        <div style="font-size: 10px; color: #999; margin-top: 4px;">
+                            T:${est.tiempo} E:${est.esfuerzo} C:${est.complejidad} I:${est.incertidumbre} QA:${est.testing}
+                        </div>
+                    </div>
+                `).join('');
+                
+                comparisonBox.style.display = 'block';
+            } else {
+                document.getElementById('comparison-box').style.display = 'none';
+            }
+        }
+
+        // Función para actualizar el historial
+        function updateHistoryDisplay() {
+            const historySection = document.getElementById('history-section');
+            const historyList = document.getElementById('history-list');
+
+            if (estimationHistory.length === 0) {
+                historySection.style.display = 'none';
+                return;
+            }
+
+            historySection.style.display = 'block';
+            historyList.innerHTML = estimationHistory.map((est, index) => `
+                <div class="history-item">
+                    <strong>${est.points} pts</strong> - ${est.title}
+                    ${est.dependencies.length > 0 ? `<br><small>Dependencias: ${est.dependencies.join(', ')}</small>` : ''}
+                    <div class="timestamp">${est.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        // Función para exportar estimaciones a CSV
+        function exportEstimations() {
+            if (estimationHistory.length === 0) {
+                alert('⚠️ No hay estimaciones para exportar');
+                return;
+            }
+
+            let csv = 'Título,Puntos,Tiempo,Esfuerzo,Complejidad,Incertidumbre,Testing,Experiencia,Dependencias,Notas,Fecha\n';
+            
+            estimationHistory.forEach(est => {
+                csv += `"${est.title}",${est.points},${est.tiempo},${est.esfuerzo},${est.complejidad},${est.incertidumbre},${est.testing},${est.experiencia},"${est.dependencies.join('; ')}","${est.notes}","${est.timestamp}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `estimaciones_planning_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Función para establecer puntos directamente (Planning Poker estilo)
+        function setDirectPoints(points) {
+            document.getElementById('story-points').textContent = points;
+            const warning = document.getElementById('warning');
+            if (points >= 13) {
+                warning.classList.add('show');
+            } else {
+                warning.classList.remove('show');
+            }
+        }
+
+        // Función auxiliar para obtener el valor seleccionado de un grupo de radio buttons
+        function getSelectedValue(name) {
+            const selected = document.querySelector(`input[name="${name}"]:checked`);
+            return selected ? parseInt(selected.value) : 1;
+        }
+
+        // Función para actualizar el desglose de criterios
+        function updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, expFactor) {
+            const breakdown = document.getElementById('criteria-breakdown');
+            const expLabel = ['', 'Primera vez', 'Poco familiar', 'Moderado', 'Expertos', 'Ya lo hicimos'][experiencia];
+            breakdown.innerHTML = `
+                <div style="font-size: 12px; margin-top: 10px; opacity: 0.9;">
+                    Volumen: ${tiempo} (${(tiempo * weights.tiempo).toFixed(2)}) | 
+                    Esfuerzo: ${esfuerzo} (${(esfuerzo * weights.esfuerzo).toFixed(2)}) | 
+                    Complejidad: ${complejidad} (${(complejidad * weights.complejidad).toFixed(2)}) | 
+                    Incertidumbre: ${incertidumbre} (${(incertidumbre * weights.incertidumbre).toFixed(2)}) | 
+                    Testing: ${testing} (${(testing * weights.testing).toFixed(2)})
+                </div>
+                <div style="font-size: 11px; margin-top: 5px; opacity: 0.8; color: #4caf50;">
+                    Factor de Experiencia: ${expLabel} (x${expFactor})
+                </div>
+            `;
+        }
+
+        // Función para reiniciar todos los valores
+        function resetValues() {
+            // Confirmar antes de resetear si hay datos
+            const title = document.getElementById('story-title').value.trim();
+            if (title && !confirm('¿Estás seguro de que quieres limpiar el formulario?')) {
+                return;
+            }
+
+            // Reiniciar criterios
+            const criteria = ['tiempo', 'esfuerzo', 'complejidad', 'incertidumbre', 'testing', 'experiencia'];
+            criteria.forEach(criterion => {
+                const radio = document.getElementById(`${criterion}-1`);
+                if (radio) radio.checked = true;
+            });
+
+            // Limpiar inputs
+            document.getElementById('story-title').value = '';
+            document.getElementById('story-notes').value = '';
+            
+            // Desmarcar dependencias
+            document.querySelectorAll('input[name="dependencies"]').forEach(cb => cb.checked = false);
+            
+            // Limpiar draft
+            localStorage.removeItem('estimator-draft');
+            
+            calculateStoryPoints();
+            updateProgress();
+            
+            showToast('Formulario limpiado 🔄', 'success');
+        }
+
+        // Event listeners para todos los radio buttons con auto-save
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                calculateStoryPoints();
+                autoSave();
+                updateProgress();
+            });
+        });
+
+        // Event listeners para dependencias
+        document.querySelectorAll('input[name="dependencies"]').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                calculateStoryPoints();
+                autoSave();
+            });
+        });
+
+        // Event listeners para inputs de texto con auto-save
+        document.getElementById('story-title').addEventListener('input', () => {
+            autoSave();
+            updateProgress();
+        });
+        
+        document.getElementById('story-notes').addEventListener('input', autoSave);
+
+        // Función para toggle de la guía
+        function toggleGuide() {
+            const content = document.getElementById('guide-content');
+            const toggle = document.getElementById('guide-toggle');
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                toggle.textContent = '+';
+            } else {
+                content.classList.add('open');
+                toggle.textContent = '−';
+            }
+        }
+
+        // Función para toggle de roles
+        function toggleRoles() {
+            const content = document.getElementById('roles-content');
+            const toggle = document.getElementById('roles-toggle');
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                toggle.textContent = '+';
+            } else {
+                content.classList.add('open');
+                toggle.textContent = '−';
+            }
+        }
+
+        /* ============================================
+           MEJORA: SHORTCUTS DE TECLADO
+           ============================================ */
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + S: Guardar estimación
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveEstimation();
+            }
+            
+            // Ctrl/Cmd + D: Toggle dark mode
+            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                e.preventDefault();
+                toggleTheme();
+            }
+            
+            // Escape: Cerrar guía si está abierta
+            if (e.key === 'Escape') {
+                const content = document.getElementById('guide-content');
+                if (content.classList.contains('open')) {
+                    toggleGuide();
+                }
+            }
+        });
+
+        /* ============================================
+           INICIALIZACIÓN AL CARGAR LA PÁGINA
+           ============================================ */
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadHistory();
+            loadDraft();
+            calculateStoryPoints();
+            updateProgress();
+            
+            // Mostrar tip inicial
+            setTimeout(() => {
+                showToast('💡 Tip: Usa Ctrl+S para guardar rápido', 'success');
+            }, 1500);
+        });
+
+        // Cálculo inicial (por compatibilidad)
+        calculateStoryPoints();
+    </script>
+</body>
+</html>
