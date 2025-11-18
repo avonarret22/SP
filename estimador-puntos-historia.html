@@ -1666,6 +1666,50 @@
             </div>
         </div>
 
+        <!-- MEJORA #4: Tipo de Tarea (Pesos Adaptativos) -->
+        <div class="dependencies-section" style="background: #fff3e0; border-left-color: #ff9800;">
+            <h3>🏷️ Tipo de Tarea</h3>
+            <div style="font-size: 11px; color: #666; margin-bottom: 10px;">
+                💡 Los pesos se ajustan automáticamente según el tipo de tarea
+            </div>
+            <div class="likert-scale" style="gap: 8px;">
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="task-type-feature" name="task-type" value="feature" checked>
+                    <label for="task-type-feature" style="padding: 12px 8px; cursor: pointer;">
+                        <span class="likert-value" style="font-size: 20px;">✨</span>
+                        <span class="likert-label" style="font-size: 10px;">Feature</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="task-type-bug" name="task-type" value="bug">
+                    <label for="task-type-bug" style="padding: 12px 8px; cursor: pointer;">
+                        <span class="likert-value" style="font-size: 20px;">🐛</span>
+                        <span class="likert-label" style="font-size: 10px;">Bug Fix</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="task-type-refactor" name="task-type" value="refactor">
+                    <label for="task-type-refactor" style="padding: 12px 8px; cursor: pointer;">
+                        <span class="likert-value" style="font-size: 20px;">🔧</span>
+                        <span class="likert-label" style="font-size: 10px;">Refactor</span>
+                    </label>
+                </div>
+                <div class="likert-option" style="flex: 1;">
+                    <input type="radio" id="task-type-spike" name="task-type" value="spike">
+                    <label for="task-type-spike" style="padding: 12px 8px; cursor: pointer;">
+                        <span class="likert-value" style="font-size: 20px;">🔬</span>
+                        <span class="likert-label" style="font-size: 10px;">Spike</span>
+                    </label>
+                </div>
+            </div>
+            <div style="margin-top: 10px; padding: 8px; background: rgba(255,152,0,0.1); border-radius: 6px; font-size: 10px;">
+                <strong>Pesos dinámicos:</strong><br>
+                <span id="task-type-weights-display">
+                    Feature: Volumen 35% • Complejidad 25% • Incertidumbre 25% • Esfuerzo 10% • Testing 5%
+                </span>
+            </div>
+        </div>
+
         <!-- Dependencias y Bloqueadores -->
         <div class="dependencies-section">
             <h3>⚠️ Dependencias y Bloqueadores</h3>
@@ -2060,14 +2104,81 @@
         // Secuencia de Fibonacci para Story Points
         const fibonacci = [1, 2, 3, 5, 8, 13];
 
-        // Pesos para cada criterio (ajustados según filosofía Scrum)
-        const weights = {
-            tiempo: 0.30,        // 30% - Volumen de trabajo activo (sin esperas)
-            complejidad: 0.30,   // 30% - Complejidad técnica (qué tan difícil es)
-            incertidumbre: 0.20, // 20% - Riesgo e incertidumbre
-            esfuerzo: 0.10,      // 10% - Esfuerzo técnico adicional
-            testing: 0.10        // 10% - Complejidad de testing
+        // ============================================
+        // MEJORA #4: PESOS ADAPTATIVOS POR TIPO DE TAREA
+        // ============================================
+        // Cada tipo de tarea tiene diferentes factores de peso
+        const adaptiveWeights = {
+            'feature': { // Features nuevos: Volumen e Incertidumbre son clave
+                tiempo: 0.35,
+                complejidad: 0.25,
+                incertidumbre: 0.25,
+                esfuerzo: 0.10,
+                testing: 0.05
+            },
+            'bug': { // Bug fixes: Complejidad y Testing son más importantes
+                tiempo: 0.15,
+                complejidad: 0.40,
+                incertidumbre: 0.10,
+                esfuerzo: 0.15,
+                testing: 0.20
+            },
+            'refactor': { // Refactors: Esfuerzo técnico y Testing son clave
+                tiempo: 0.20,
+                complejidad: 0.20,
+                incertidumbre: 0.05,
+                esfuerzo: 0.35,
+                testing: 0.20
+            },
+            'spike': { // Spikes: Incertidumbre domina
+                tiempo: 0.10,
+                complejidad: 0.30,
+                incertidumbre: 0.50,
+                esfuerzo: 0.05,
+                testing: 0.05
+            },
+            'default': { // Default (compatibilidad hacia atrás)
+                tiempo: 0.30,
+                complejidad: 0.30,
+                incertidumbre: 0.20,
+                esfuerzo: 0.10,
+                testing: 0.10
+            }
         };
+
+        // Función para obtener pesos según tipo de tarea
+        function getWeightsByTaskType() {
+            const taskType = getSelectedValue('task-type') || 'feature';
+            return adaptiveWeights[taskType] || adaptiveWeights['default'];
+        }
+
+        // Función para actualizar el display de pesos en UI
+        function updateTaskTypeWeightsDisplay() {
+            const display = document.getElementById('task-type-weights-display');
+            if (!display) return;
+
+            const taskType = getSelectedValue('task-type') || 'feature';
+            const w = weights;
+
+            const descriptions = {
+                'feature': '✨ Feature: Enfoque en Volumen e Incertidumbre',
+                'bug': '🐛 Bug Fix: Enfoque en Complejidad y Testing',
+                'refactor': '🔧 Refactor: Enfoque en Esfuerzo Técnico y Testing',
+                'spike': '🔬 Spike: Enfoque en Incertidumbre (investigación)'
+            };
+
+            display.innerHTML = `
+                ${descriptions[taskType] || ''}<br>
+                Volumen ${(w.tiempo * 100).toFixed(0)}% •
+                Complejidad ${(w.complejidad * 100).toFixed(0)}% •
+                Incertidumbre ${(w.incertidumbre * 100).toFixed(0)}% •
+                Esfuerzo ${(w.esfuerzo * 100).toFixed(0)}% •
+                Testing ${(w.testing * 100).toFixed(0)}%
+            `;
+        }
+
+        // Variable global para compatibilidad (se actualiza dinámicamente)
+        let weights = adaptiveWeights['feature'];
 
         // Historial de estimaciones y calibración
         let estimationHistory = [];
@@ -2263,6 +2374,10 @@
          * - Valores extremos (promedio ponderado > 4.8): Requiere refinamiento
          */
         function calculateStoryPoints() {
+            // MEJORA #4: Obtener pesos adaptativos según tipo de tarea
+            weights = getWeightsByTaskType();
+            updateTaskTypeWeightsDisplay();
+
             // Obtener valores seleccionados
             const tiempo = getSelectedValue('tiempo');
             const esfuerzo = getSelectedValue('esfuerzo');
@@ -2271,26 +2386,66 @@
             const testing = getSelectedValue('testing');
             const experiencia = getSelectedValue('experiencia');
 
-            // Calcular promedio ponderado base
-            let weightedAverage =
-                (tiempo * weights.tiempo) +
-                (esfuerzo * weights.esfuerzo) +
-                (complejidad * weights.complejidad) +
-                (incertidumbre * weights.incertidumbre) +
-                (testing * weights.testing);
+            // ============================================
+            // MEJORA #1: FACTOR DE EXPERIENCIA DIFERENCIADO POR CRITERIO
+            // ============================================
+            // La experiencia NO afecta igual a todos los criterios:
+            // - Complejidad: MUY afectada (expertos resuelven rápido)
+            // - Incertidumbre: Moderadamente afectada (expertos navegan mejor lo desconocido)
+            // - Volumen: POCO afectada (el trabajo es el que es)
+            // - Testing: Poco afectada (las pruebas hay que hacerlas igual)
+            // - Esfuerzo: Moderadamente afectado
 
-            // AJUSTE POR EXPERIENCIA DEL EQUIPO (esto es crítico en la realidad)
-            // Si el equipo es experto (4-5), reduce la complejidad percibida
-            // Si es novato (1-2), aumenta la complejidad percibida
-            const experienceFactor = {
-                1: 1.5,   // Primera vez: +50% de dificultad
-                2: 1.25,  // Poco familiarizado: +25%
-                3: 1.0,   // Moderado: sin cambio
-                4: 0.80,  // Expertos: -20%
-                5: 0.60   // Ya lo hicimos: -40%
+            const experienceFactors = {
+                1: { // Primera vez
+                    complejidad: 1.6,
+                    incertidumbre: 1.4,
+                    volumen: 1.1,
+                    testing: 1.2,
+                    esfuerzo: 1.3
+                },
+                2: { // Poco familiarizado
+                    complejidad: 1.3,
+                    incertidumbre: 1.2,
+                    volumen: 1.05,
+                    testing: 1.15,
+                    esfuerzo: 1.2
+                },
+                3: { // Moderado (sin cambios)
+                    complejidad: 1.0,
+                    incertidumbre: 1.0,
+                    volumen: 1.0,
+                    testing: 1.0,
+                    esfuerzo: 1.0
+                },
+                4: { // Expertos
+                    complejidad: 0.7,
+                    incertidumbre: 0.8,
+                    volumen: 0.95,
+                    testing: 0.9,
+                    esfuerzo: 0.85
+                },
+                5: { // Ya lo hicimos
+                    complejidad: 0.5,
+                    incertidumbre: 0.7,
+                    volumen: 0.9,
+                    testing: 0.85,
+                    esfuerzo: 0.75
+                }
             };
 
-            weightedAverage = weightedAverage * experienceFactor[experiencia];
+            const expFactors = experienceFactors[experiencia];
+
+            // Calcular promedio ponderado con factores diferenciados
+            let weightedAverage =
+                (tiempo * weights.tiempo * expFactors.volumen) +
+                (esfuerzo * weights.esfuerzo * expFactors.esfuerzo) +
+                (complejidad * weights.complejidad * expFactors.complejidad) +
+                (incertidumbre * weights.incertidumbre * expFactors.incertidumbre) +
+                (testing * weights.testing * expFactors.testing);
+
+            // Guardar para mostrar en breakdown
+            window.experienceFactorsApplied = expFactors;
 
             // ============================================
             // MEJORA #2: EFECTO SINÉRGICO ENTRE CRITERIOS
@@ -2416,8 +2571,8 @@
             // Mostrar confidence score
             updateConfidenceScore(confidenceScore);
 
-            // Mostrar desglose de criterios
-            updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, experienceFactor[experiencia]);
+            // Mostrar desglose de criterios (MEJORA #1: Factores diferenciados)
+            updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, expFactors);
 
             // Mostrar advertencia si requiere refinamiento
             const warning = document.getElementById('warning');
@@ -2638,6 +2793,7 @@
                 incertidumbre: getSelectedValue('incertidumbre'),
                 testing: getSelectedValue('testing'),
                 experiencia: getSelectedValue('experiencia'),
+                taskType: getSelectedValue('task-type') || 'feature', // MEJORA #4
                 dependencies: Array.from(document.querySelectorAll('input[name="dependencies"]:checked')).map(cb => cb.nextElementSibling.textContent),
                 timestamp: new Date().toLocaleString('es-ES')
             };
@@ -2780,20 +2936,31 @@
             return selected ? parseInt(selected.value) : 1;
         }
 
-        // Función para actualizar el desglose de criterios
-        function updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, expFactor) {
+        // Función para actualizar el desglose de criterios (MEJORA #1 + #4)
+        function updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, expFactors) {
             const breakdown = document.getElementById('criteria-breakdown');
             const expLabel = ['', 'Primera vez', 'Poco familiar', 'Moderado', 'Expertos', 'Ya lo hicimos'][experiencia];
+
+            // Calcular valores con pesos y factores de experiencia
+            const volumenValue = (tiempo * weights.tiempo * expFactors.volumen).toFixed(2);
+            const esfuerzoValue = (esfuerzo * weights.esfuerzo * expFactors.esfuerzo).toFixed(2);
+            const complejidadValue = (complejidad * weights.complejidad * expFactors.complejidad).toFixed(2);
+            const incertidumbreValue = (incertidumbre * weights.incertidumbre * expFactors.incertidumbre).toFixed(2);
+            const testingValue = (testing * weights.testing * expFactors.testing).toFixed(2);
+
             breakdown.innerHTML = `
                 <div style="font-size: 12px; margin-top: 10px; opacity: 0.9;">
-                    Volumen: ${tiempo} (${(tiempo * weights.tiempo).toFixed(2)}) | 
-                    Esfuerzo: ${esfuerzo} (${(esfuerzo * weights.esfuerzo).toFixed(2)}) | 
-                    Complejidad: ${complejidad} (${(complejidad * weights.complejidad).toFixed(2)}) | 
-                    Incertidumbre: ${incertidumbre} (${(incertidumbre * weights.incertidumbre).toFixed(2)}) | 
-                    Testing: ${testing} (${(testing * weights.testing).toFixed(2)})
+                    Volumen: ${tiempo} (${volumenValue}) |
+                    Esfuerzo: ${esfuerzo} (${esfuerzoValue}) |
+                    Complejidad: ${complejidad} (${complejidadValue}) |
+                    Incertidumbre: ${incertidumbre} (${incertidumbreValue}) |
+                    Testing: ${testing} (${testingValue})
                 </div>
                 <div style="font-size: 11px; margin-top: 5px; opacity: 0.8; color: #4caf50;">
-                    Factor de Experiencia: ${expLabel} (x${expFactor})
+                    Factor de Experiencia: ${expLabel}
+                    (C:×${expFactors.complejidad.toFixed(2)},
+                    I:×${expFactors.incertidumbre.toFixed(2)},
+                    V:×${expFactors.volumen.toFixed(2)})
                 </div>
             `;
         }
