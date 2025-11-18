@@ -1,24 +1,8 @@
 {
-  "version": 2,
-  "name": "estimador-puntos-historia",
-  "builds": [
+  "rewrites": [
     {
-      "src": "*.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/estimador",
-      "dest": "/estimador-puntos-historia.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "source": "/estimador",
+      "destination": "/estimador-puntos-historia.html"
     }
   ],
   "headers": [
