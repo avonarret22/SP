@@ -1948,7 +1948,21 @@
             <div class="story-points" id="story-points">1</div>
             <div class="average-score">Promedio ponderado: <span id="average">1.00</span></div>
             <div id="criteria-breakdown"></div>
-            
+
+            <!-- MEJORA #7: Confidence Score -->
+            <div id="confidence-score" style="display: none; margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px; border-left: 4px solid #667eea;">
+                <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #333;">
+                    📊 Confianza de la Estimación: <span id="confidence-label"></span>
+                </div>
+                <div style="background: #fff; border-radius: 8px; height: 12px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+                    <div id="confidence-bar" style="height: 100%; transition: all 0.4s ease; border-radius: 8px;"></div>
+                </div>
+                <div id="confidence-reasons"></div>
+                <div style="margin-top: 8px; font-size: 10px; color: #666; font-style: italic;">
+                    💡 Este indicador muestra qué tan confiable es la estimación basado en incertidumbre, experiencia y factores de riesgo.
+                </div>
+            </div>
+
             <!-- Selección Rápida de Fibonacci -->
             <div style="margin-top: 20px;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">O selecciona directamente:</div>
@@ -2256,15 +2270,15 @@
             const incertidumbre = getSelectedValue('incertidumbre');
             const testing = getSelectedValue('testing');
             const experiencia = getSelectedValue('experiencia');
-            
+
             // Calcular promedio ponderado base
-            let weightedAverage = 
+            let weightedAverage =
                 (tiempo * weights.tiempo) +
                 (esfuerzo * weights.esfuerzo) +
                 (complejidad * weights.complejidad) +
                 (incertidumbre * weights.incertidumbre) +
                 (testing * weights.testing);
-            
+
             // AJUSTE POR EXPERIENCIA DEL EQUIPO (esto es crítico en la realidad)
             // Si el equipo es experto (4-5), reduce la complejidad percibida
             // Si es novato (1-2), aumenta la complejidad percibida
@@ -2275,9 +2289,86 @@
                 4: 0.80,  // Expertos: -20%
                 5: 0.60   // Ya lo hicimos: -40%
             };
-            
+
             weightedAverage = weightedAverage * experienceFactor[experiencia];
-            
+
+            // ============================================
+            // MEJORA #2: EFECTO SINÉRGICO ENTRE CRITERIOS
+            // ============================================
+            let synergyFactor = 1.0;
+            let synergyReasons = [];
+
+            // Complejidad + Incertidumbre alta = bomba de tiempo (efecto exponencial)
+            if (complejidad >= 4 && incertidumbre >= 4) {
+                synergyFactor += 0.3;
+                synergyReasons.push('⚡ Complejidad + Incertidumbre alta (+30%)');
+            }
+
+            // Volumen alto + Testing crítico = cuello de botella QA
+            if (tiempo >= 4 && testing >= 4) {
+                synergyFactor += 0.2;
+                synergyReasons.push('⚡ Volumen alto + Testing crítico (+20%)');
+            }
+
+            // Tormenta perfecta: Complejidad + Volumen + Incertidumbre todos altos
+            if (complejidad >= 4 && tiempo >= 4 && incertidumbre >= 4) {
+                synergyFactor += 0.4;
+                synergyReasons.push('⚡ Tormenta perfecta: C+V+I altos (+40%)');
+            }
+
+            // Volumen alto + Complejidad baja + Experiencia alta = paralelizable (reduce esfuerzo)
+            if (tiempo >= 4 && complejidad <= 2 && experiencia >= 4) {
+                synergyFactor -= 0.15;
+                synergyReasons.push('✅ Tarea paralelizable: V alto + C baja + Exp alta (-15%)');
+            }
+
+            // Aplicar efecto sinérgico
+            weightedAverage = weightedAverage * synergyFactor;
+
+            // ============================================
+            // MEJORA #5: DEPENDENCIAS EN CÁLCULO
+            // ============================================
+            const dependencies = document.querySelectorAll('input[name="dependencies"]:checked');
+            let dependencyFactor = 1.0;
+            let dependencyReasons = [];
+
+            dependencies.forEach(dep => {
+                const depValue = dep.value;
+
+                // Dependencias que agregan esfuerzo real
+                if (depValue === 'backend' && tiempo >= 3) {
+                    dependencyFactor += 0.1;
+                    dependencyReasons.push('🔗 Dependencia Backend (+10%)');
+                }
+                if (depValue === 'design' && incertidumbre >= 3) {
+                    dependencyFactor += 0.15;
+                    dependencyReasons.push('🔗 Iteraciones de Diseño (+15%)');
+                }
+                if (depValue === 'external-api') {
+                    dependencyFactor += 0.2;
+                    dependencyReasons.push('🔗 API Externa (+20%)');
+                }
+                if (depValue === 'extensive-testing' && testing >= 4) {
+                    dependencyFactor += 0.1;
+                    dependencyReasons.push('🔗 QA Extensivo (+10%)');
+                }
+            });
+
+            // Múltiples dependencias = overhead de coordinación
+            if (dependencies.length >= 3) {
+                dependencyFactor += 0.15;
+                dependencyReasons.push('🔗 Overhead de coordinación (+15%)');
+            }
+
+            // Aplicar factor de dependencias
+            weightedAverage = weightedAverage * dependencyFactor;
+
+            // Guardar factores para mostrar en UI
+            window.synergyReasons = synergyReasons;
+            window.dependencyReasons = dependencyReasons;
+            window.synergyFactor = synergyFactor;
+            window.dependencyFactor = dependencyFactor;
+
             // Lógica mejorada de mapeo a Fibonacci
             let storyPoints;
             
@@ -2313,13 +2404,21 @@
                 storyPoints = Math.min(storyPoints + 2, 13); // Aumentar pero no exceder 13
             }
             
+            // ============================================
+            // MEJORA #7: CONFIDENCE SCORE
+            // ============================================
+            const confidenceScore = calculateConfidenceScore(tiempo, complejidad, incertidumbre, testing, experiencia);
+
             // Actualizar interfaz
             document.getElementById('story-points').textContent = storyPoints;
             document.getElementById('average').textContent = weightedAverage.toFixed(2);
-            
+
+            // Mostrar confidence score
+            updateConfidenceScore(confidenceScore);
+
             // Mostrar desglose de criterios
             updateCriteriaBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia, experienceFactor[experiencia]);
-            
+
             // Mostrar advertencia si requiere refinamiento
             const warning = document.getElementById('warning');
             if (storyPoints >= 13) {
@@ -2330,12 +2429,106 @@
 
             // Generar recomendaciones inteligentes
             generateRecommendations(tiempo, esfuerzo, complejidad, incertidumbre, testing, storyPoints);
-            
+
             // Actualizar desglose visual
             updateVisualBreakdown(tiempo, esfuerzo, complejidad, incertidumbre, testing, experiencia);
-            
+
             // Buscar historias similares
             findSimilarStories(tiempo, esfuerzo, complejidad, incertidumbre, testing);
+        }
+
+        /**
+         * MEJORA #7: Calcular score de confianza de la estimación
+         * Retorna un valor entre 0-100 indicando qué tan confiable es la estimación
+         */
+        function calculateConfidenceScore(tiempo, complejidad, incertidumbre, testing, experiencia) {
+            let confidence = 100;
+
+            // Reducir confianza por incertidumbre (factor más importante)
+            confidence -= (incertidumbre - 1) * 12; // -0, -12, -24, -36, -48%
+
+            // Reducir confianza si no hay experiencia
+            if (experiencia === 1) confidence -= 25; // Primera vez: -25%
+            else if (experiencia === 2) confidence -= 15; // Poco familiar: -15%
+
+            // Reducir confianza si hay valores extremos (indica tarea muy grande)
+            const extremeValues = [tiempo, complejidad, incertidumbre, testing].filter(v => v >= 5).length;
+            confidence -= extremeValues * 8; // -8% por cada valor extremo
+
+            // Reducir confianza si hay combinaciones peligrosas
+            if (complejidad >= 4 && incertidumbre >= 4) confidence -= 10;
+            if (tiempo >= 4 && complejidad >= 4 && incertidumbre >= 4) confidence -= 15;
+
+            // Aumentar confianza si hay historias similares en el historial
+            if (estimationHistory.length > 0) {
+                const similar = estimationHistory.filter(est => {
+                    const diff = Math.abs(est.tiempo - tiempo) +
+                               Math.abs(est.complejidad - complejidad) +
+                               Math.abs(est.incertidumbre - incertidumbre);
+                    return diff <= 4;
+                }).length;
+                confidence += Math.min(similar * 5, 15); // Máximo +15%
+            }
+
+            // Aumentar confianza si el equipo es experto y la tarea es simple
+            if (experiencia >= 4 && complejidad <= 2 && incertidumbre <= 2) {
+                confidence += 10;
+            }
+
+            return Math.max(0, Math.min(100, confidence));
+        }
+
+        /**
+         * Actualizar UI con el confidence score
+         */
+        function updateConfidenceScore(confidence) {
+            const confidenceElement = document.getElementById('confidence-score');
+            const confidenceBar = document.getElementById('confidence-bar');
+            const confidenceLabel = document.getElementById('confidence-label');
+
+            if (!confidenceElement) return; // Si no existe el elemento, salir
+
+            // Determinar color y etiqueta según el nivel de confianza
+            let color, label, icon;
+            if (confidence >= 80) {
+                color = '#4caf50'; // Verde
+                label = 'Alta';
+                icon = '🟢';
+            } else if (confidence >= 50) {
+                color = '#ff9800'; // Naranja
+                label = 'Media';
+                icon = '🟡';
+            } else {
+                color = '#f44336'; // Rojo
+                label = 'Baja';
+                icon = '🔴';
+            }
+
+            confidenceElement.style.display = 'block';
+            confidenceBar.style.width = confidence + '%';
+            confidenceBar.style.backgroundColor = color;
+            confidenceLabel.innerHTML = `${icon} ${label} (${confidence}%)`;
+
+            // Agregar tooltip con explicación
+            const reasons = [];
+            if (window.synergyReasons && window.synergyReasons.length > 0) {
+                reasons.push(...window.synergyReasons);
+            }
+            if (window.dependencyReasons && window.dependencyReasons.length > 0) {
+                reasons.push(...window.dependencyReasons);
+            }
+
+            if (reasons.length > 0) {
+                const reasonsHtml = reasons.map(r => `<li style="font-size: 11px; margin: 3px 0;">${r}</li>`).join('');
+                document.getElementById('confidence-reasons').innerHTML = `
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        <strong>Factores aplicados:</strong>
+                        <ul style="margin: 5px 0; padding-left: 20px;">${reasonsHtml}</ul>
+                    </div>
+                `;
+            } else {
+                document.getElementById('confidence-reasons').innerHTML = '';
+            }
         }
 
         // Función para generar recomendaciones inteligentes
