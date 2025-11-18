@@ -2007,6 +2007,13 @@
                 </div>
             </div>
 
+            <!-- MEJORA #3: Panel de Sugerencia ML -->
+            <div id="ml-suggestion-panel" style="display: none; margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 10px; border-left: 4px solid #4caf50;">
+                <div id="ml-suggestion-content">
+                    <!-- Contenido dinámico de ML -->
+                </div>
+            </div>
+
             <!-- Selección Rápida de Fibonacci -->
             <div style="margin-top: 20px;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 8px;">O selecciona directamente:</div>
@@ -2187,6 +2194,41 @@
             avgDifference: 0
         };
 
+        // ============================================
+        // MEJORA #3: MACHINE LEARNING - CALIBRACIÓN AUTOMÁTICA
+        // ============================================
+        let mlModel = {
+            version: '1.0',
+            enabled: false,
+
+            // Datos de entrenamiento (HUs completadas con puntos reales)
+            trainingData: [],
+
+            // Factores de corrección aprendidos
+            globalFactor: 1.0,
+            factorsByType: {
+                'feature': 1.0,
+                'bug': 1.0,
+                'refactor': 1.0,
+                'spike': 1.0
+            },
+
+            // Metadatos del modelo
+            totalTraining: 0,
+            lastUpdated: null,
+            teamVelocity: 0,
+            accuracy: 0,
+
+            // Configuración
+            config: {
+                minDataPoints: 10,           // Mínimo de HUs para activar ML
+                timeDecayWeeks: 10,          // Semanas para decaimiento temporal
+                confidenceThreshold: 5,      // Mínimo de HUs similares para alta confianza
+                similarityThreshold: 3,      // Umbral de similitud de criterios
+                maxTrainingData: 100         // Máximo de HUs en historial (evitar overflow)
+            }
+        };
+
         /* ============================================
            MEJORA: DARK MODE CON PERSISTENCIA
            ============================================ */
@@ -2223,6 +2265,397 @@
             } else {
                 icon.textContent = '🌙';
                 text.textContent = 'Modo Oscuro';
+            }
+        }
+
+        /* ============================================
+           MEJORA #3: FUNCIONES DE MACHINE LEARNING
+           ============================================ */
+
+        /**
+         * Cargar modelo ML desde localStorage
+         */
+        function loadMLModel() {
+            try {
+                const saved = localStorage.getItem('ml-model');
+                if (saved) {
+                    const loaded = JSON.parse(saved);
+                    mlModel = { ...mlModel, ...loaded };
+                    mlModel.enabled = mlModel.totalTraining >= mlModel.config.minDataPoints;
+                }
+            } catch (e) {
+                console.error('Error loading ML model:', e);
+            }
+        }
+
+        /**
+         * Guardar modelo ML en localStorage
+         */
+        function saveMLModel() {
+            try {
+                localStorage.setItem('ml-model', JSON.stringify(mlModel));
+            } catch (e) {
+                console.error('Error saving ML model:', e);
+            }
+        }
+
+        /**
+         * Entrenar el modelo con datos de una HU completada
+         */
+        function trainMLModel(completedStory) {
+            // Validar datos
+            if (!completedStory.actualPoints || completedStory.actualPoints < 1) {
+                showToast('❌ Puntos reales inválidos', 'error');
+                return false;
+            }
+
+            // Agregar al conjunto de entrenamiento
+            mlModel.trainingData.push({
+                ...completedStory,
+                trainedAt: new Date().toISOString()
+            });
+
+            // Limitar tamaño del dataset
+            if (mlModel.trainingData.length > mlModel.config.maxTrainingData) {
+                mlModel.trainingData.shift(); // Eliminar el más antiguo
+            }
+
+            // Actualizar metadatos
+            mlModel.totalTraining = mlModel.trainingData.length;
+            mlModel.lastUpdated = new Date().toISOString();
+
+            // Recalcular factores de corrección
+            recalculateMLFactors();
+
+            // Habilitar ML si alcanzamos el mínimo
+            mlModel.enabled = mlModel.totalTraining >= mlModel.config.minDataPoints;
+
+            // Guardar
+            saveMLModel();
+
+            showToast(`✅ Modelo entrenado (${mlModel.totalTraining} HUs)`, 'success');
+            return true;
+        }
+
+        /**
+         * Recalcular factores de corrección del modelo
+         */
+        function recalculateMLFactors() {
+            if (mlModel.trainingData.length === 0) return;
+
+            // Factor global con decaimiento temporal
+            mlModel.globalFactor = calculateWeightedDeviation(mlModel.trainingData);
+
+            // Factores por tipo de tarea
+            ['feature', 'bug', 'refactor', 'spike'].forEach(taskType => {
+                const typeData = mlModel.trainingData.filter(hu => hu.taskType === taskType);
+                if (typeData.length >= 3) {
+                    mlModel.factorsByType[taskType] = calculateWeightedDeviation(typeData);
+                }
+            });
+
+            // Calcular precisión del modelo
+            mlModel.accuracy = calculateModelAccuracy();
+        }
+
+        /**
+         * Calcular desviación ponderada con decaimiento temporal
+         */
+        function calculateWeightedDeviation(data) {
+            if (data.length === 0) return 1.0;
+
+            const now = new Date();
+            let weightedSum = 0;
+            let totalWeight = 0;
+
+            data.forEach(hu => {
+                // Calcular antigüedad en semanas
+                const completionDate = new Date(hu.trainedAt || hu.timestamp);
+                const ageInWeeks = (now - completionDate) / (7 * 24 * 60 * 60 * 1000);
+
+                // Decaimiento exponencial: datos recientes pesan más
+                const weight = Math.exp(-ageInWeeks / mlModel.config.timeDecayWeeks);
+
+                // Desviación de esta HU
+                const deviation = hu.actualPoints / hu.estimatedPoints;
+
+                weightedSum += deviation * weight;
+                totalWeight += weight;
+            });
+
+            return weightedSum / totalWeight;
+        }
+
+        /**
+         * Calcular precisión del modelo (%)
+         */
+        function calculateModelAccuracy() {
+            if (mlModel.trainingData.length < 5) return 0;
+
+            const recent = mlModel.trainingData.slice(-20); // Últimas 20
+            let totalError = 0;
+
+            recent.forEach(hu => {
+                const predicted = hu.estimatedPoints;
+                const actual = hu.actualPoints;
+                const error = Math.abs(actual - predicted) / actual;
+                totalError += error;
+            });
+
+            const avgError = totalError / recent.length;
+            const accuracy = Math.max(0, (1 - avgError) * 100);
+
+            return Math.round(accuracy);
+        }
+
+        /**
+         * Buscar HUs completadas similares a los criterios actuales
+         */
+        function findSimilarCompletedStories(criteria) {
+            if (mlModel.trainingData.length === 0) return null;
+
+            const similar = mlModel.trainingData.filter(hu => {
+                const diff =
+                    Math.abs(hu.tiempo - criteria.tiempo) +
+                    Math.abs(hu.complejidad - criteria.complejidad) +
+                    Math.abs(hu.incertidumbre - criteria.incertidumbre) +
+                    Math.abs(hu.esfuerzo - criteria.esfuerzo) +
+                    Math.abs(hu.testing - criteria.testing);
+
+                return diff <= mlModel.config.similarityThreshold;
+            });
+
+            if (similar.length === 0) return null;
+
+            // Calcular promedio de puntos reales
+            const avgActual = similar.reduce((sum, hu) => sum + hu.actualPoints, 0) / similar.length;
+            const avgEstimated = similar.reduce((sum, hu) => sum + hu.estimatedPoints, 0) / similar.length;
+
+            return {
+                count: similar.length,
+                suggestedPoints: Math.round(avgActual),
+                suggestedFactor: avgActual / avgEstimated,
+                examples: similar.slice(-3).map(hu => ({
+                    title: hu.title,
+                    estimated: hu.estimatedPoints,
+                    actual: hu.actualPoints
+                }))
+            };
+        }
+
+        /**
+         * Calcular ajuste ML para la estimación actual
+         */
+        function calculateMLAdjustment(basePoints, criteria) {
+            if (!mlModel.enabled) {
+                return {
+                    enabled: false,
+                    message: `ML no activo. Necesitas ${mlModel.config.minDataPoints - mlModel.totalTraining} HUs más.`,
+                    adjustedPoints: basePoints,
+                    confidence: 'none'
+                };
+            }
+
+            // Buscar HUs similares
+            const similar = findSimilarCompletedStories(criteria);
+
+            let adjustedPoints = basePoints;
+            let confidence = 'low';
+            let method = 'none';
+            let factor = 1.0;
+
+            if (similar && similar.count >= mlModel.config.confidenceThreshold) {
+                // Alta confianza: usar HUs similares
+                adjustedPoints = similar.suggestedPoints;
+                confidence = 'high';
+                method = 'similar-stories';
+                factor = similar.suggestedFactor;
+            } else if (similar && similar.count >= 2) {
+                // Confianza media: combinar similares con factor por tipo
+                const similarFactor = similar.suggestedFactor;
+                const typeFactor = mlModel.factorsByType[criteria.taskType] || mlModel.globalFactor;
+                factor = (similarFactor * 0.7) + (typeFactor * 0.3);
+                adjustedPoints = Math.round(basePoints * factor);
+                confidence = 'medium';
+                method = 'hybrid';
+            } else {
+                // Baja confianza: usar solo factor por tipo
+                factor = mlModel.factorsByType[criteria.taskType] || mlModel.globalFactor;
+                adjustedPoints = Math.round(basePoints * factor);
+                confidence = 'low';
+                method = 'task-type';
+            }
+
+            return {
+                enabled: true,
+                basePoints: basePoints,
+                adjustedPoints: adjustedPoints,
+                factor: factor,
+                confidence: confidence,
+                method: method,
+                similar: similar,
+                modelStats: {
+                    totalTraining: mlModel.totalTraining,
+                    accuracy: mlModel.accuracy + '%',
+                    lastUpdated: mlModel.lastUpdated
+                }
+            };
+        }
+
+        /**
+         * Detectar estimaciones anómalas
+         */
+        function detectAnomalies(points, criteria) {
+            const similar = findSimilarCompletedStories(criteria);
+
+            if (!similar || similar.count < 3) return null;
+
+            // Calcular desviación estándar
+            const similarPoints = mlModel.trainingData
+                .filter(hu => {
+                    const diff =
+                        Math.abs(hu.tiempo - criteria.tiempo) +
+                        Math.abs(hu.complejidad - criteria.complejidad) +
+                        Math.abs(hu.incertidumbre - criteria.incertidumbre);
+                    return diff <= mlModel.config.similarityThreshold;
+                })
+                .map(hu => hu.actualPoints);
+
+            const mean = similarPoints.reduce((a, b) => a + b, 0) / similarPoints.length;
+            const variance = similarPoints.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / similarPoints.length;
+            const stdDev = Math.sqrt(variance);
+
+            // Si la estimación está fuera de 2 desviaciones estándar
+            const zScore = Math.abs(points - mean) / stdDev;
+
+            if (zScore > 2) {
+                return {
+                    type: zScore > 3 ? 'severe' : 'warning',
+                    message: `Estimación ${zScore > 3 ? 'muy ' : ''}diferente al patrón histórico`,
+                    expected: mean.toFixed(1),
+                    range: `${(mean - stdDev).toFixed(1)}-${(mean + stdDev).toFixed(1)}`,
+                    current: points,
+                    zScore: zScore.toFixed(2)
+                };
+            }
+
+            return null;
+        }
+
+        /**
+         * Actualizar UI con sugerencia ML
+         */
+        function updateMLSuggestion(mlAdjustment) {
+            const mlPanel = document.getElementById('ml-suggestion-panel');
+            if (!mlPanel) return;
+
+            if (!mlAdjustment.enabled) {
+                mlPanel.style.display = 'none';
+                return;
+            }
+
+            mlPanel.style.display = 'block';
+
+            const confidenceColors = {
+                'high': '#4caf50',
+                'medium': '#ff9800',
+                'low': '#999999',
+                'none': '#999999'
+            };
+
+            const confidenceIcons = {
+                'high': '🟢',
+                'medium': '🟡',
+                'low': '⚪',
+                'none': '⚪'
+            };
+
+            const confidenceLabels = {
+                'high': 'Alta',
+                'medium': 'Media',
+                'low': 'Baja',
+                'none': 'Sin datos'
+            };
+
+            const methodLabels = {
+                'similar-stories': 'Basado en HUs similares',
+                'hybrid': 'Híbrido (similares + tipo)',
+                'task-type': 'Basado en tipo de tarea',
+                'none': 'Sin ajuste'
+            };
+
+            const color = confidenceColors[mlAdjustment.confidence];
+            const icon = confidenceIcons[mlAdjustment.confidence];
+            const label = confidenceLabels[mlAdjustment.confidence];
+
+            let examplesHTML = '';
+            if (mlAdjustment.similar && mlAdjustment.similar.examples.length > 0) {
+                examplesHTML = `
+                    <div style="margin-top: 8px; font-size: 11px;">
+                        <strong>Ejemplos similares:</strong><br>
+                        ${mlAdjustment.similar.examples.map(ex =>
+                            `• "${ex.title}": estimado ${ex.estimated} → real ${ex.actual}`
+                        ).join('<br>')}
+                    </div>
+                `;
+            }
+
+            document.getElementById('ml-suggestion-content').innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 600;">
+                        🤖 Sugerencia de Machine Learning
+                    </div>
+                    <div style="font-size: 12px; background: ${color}; color: white; padding: 4px 8px; border-radius: 12px;">
+                        ${icon} ${label}
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <div style="font-size: 13px;">
+                        Estimación base: <strong>${mlAdjustment.basePoints} puntos</strong><br>
+                        Ajuste ML: ${mlAdjustment.basePoints} × ${mlAdjustment.factor.toFixed(2)} =
+                        <strong style="font-size: 16px; color: ${color};">${mlAdjustment.adjustedPoints} puntos</strong>
+                    </div>
+                </div>
+
+                <div style="font-size: 11px; color: #666;">
+                    ${methodLabels[mlAdjustment.method]}
+                    ${mlAdjustment.similar ? `(${mlAdjustment.similar.count} HUs similares)` : ''}
+                </div>
+
+                ${examplesHTML}
+
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
+                    <button class="quick-select-btn" onclick="applyMLSuggestion()" style="width: 100%; background: ${color};">
+                        ✅ Aplicar sugerencia ML (${mlAdjustment.adjustedPoints} pts)
+                    </button>
+                </div>
+
+                <div style="margin-top: 8px; font-size: 10px; color: #999; text-align: center;">
+                    Modelo: ${mlAdjustment.modelStats.totalTraining} HUs |
+                    Precisión: ${mlAdjustment.modelStats.accuracy} |
+                    Actualizado: ${mlAdjustment.modelStats.lastUpdated ? new Date(mlAdjustment.modelStats.lastUpdated).toLocaleDateString('es-ES') : 'N/A'}
+                </div>
+            `;
+        }
+
+        /**
+         * Aplicar sugerencia ML al resultado
+         */
+        function applyMLSuggestion() {
+            if (!window.mlSuggestion || !window.mlSuggestion.enabled) return;
+
+            const adjustedPoints = window.mlSuggestion.adjustedPoints;
+            document.getElementById('story-points').textContent = adjustedPoints;
+
+            showToast(`✅ ML aplicado: ${adjustedPoints} puntos`, 'success');
+
+            // Actualizar advertencia si requiere refinamiento
+            const warning = document.getElementById('warning');
+            if (adjustedPoints >= 13) {
+                warning.classList.add('show');
+            } else {
+                warning.classList.remove('show');
             }
         }
 
@@ -2558,15 +2991,33 @@
             if (experiencia === 1 && weightedAverage > 3.5) {
                 storyPoints = Math.min(storyPoints + 2, 13); // Aumentar pero no exceder 13
             }
-            
+
+            // ============================================
+            // MEJORA #3: MACHINE LEARNING ADJUSTMENT
+            // ============================================
+            const mlAdjustment = calculateMLAdjustment(storyPoints, {
+                tiempo, esfuerzo, complejidad, incertidumbre, testing,
+                taskType: getSelectedValue('task-type') || 'feature'
+            });
+
+            // Guardar sugerencia ML para mostrar en UI
+            window.mlSuggestion = mlAdjustment;
+
+            // Si ML está habilitado y tiene alta/media confianza, SUGERIR (no imponer)
+            // El usuario decide si usar la sugerencia ML
+            const finalPoints = storyPoints; // Por ahora, no auto-aplicar ML
+
             // ============================================
             // MEJORA #7: CONFIDENCE SCORE
             // ============================================
             const confidenceScore = calculateConfidenceScore(tiempo, complejidad, incertidumbre, testing, experiencia);
 
             // Actualizar interfaz
-            document.getElementById('story-points').textContent = storyPoints;
+            document.getElementById('story-points').textContent = finalPoints;
             document.getElementById('average').textContent = weightedAverage.toFixed(2);
+
+            // Mostrar sugerencia ML si está activa
+            updateMLSuggestion(mlAdjustment);
 
             // Mostrar confidence score
             updateConfidenceScore(confidenceScore);
@@ -3080,13 +3531,17 @@
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
             loadHistory();
+            loadMLModel(); // MEJORA #3: Cargar modelo ML
             loadDraft();
             calculateStoryPoints();
             updateProgress();
-            
+
             // Mostrar tip inicial
             setTimeout(() => {
-                showToast('💡 Tip: Usa Ctrl+S para guardar rápido', 'success');
+                const mlStatus = mlModel.enabled ?
+                    `🤖 ML activo (${mlModel.totalTraining} HUs)` :
+                    '💡 Tip: Usa Ctrl+S para guardar rápido';
+                showToast(mlStatus, 'success');
             }, 1500);
         });
 
